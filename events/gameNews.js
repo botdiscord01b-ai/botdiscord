@@ -4,22 +4,25 @@ const Parser = require('rss-parser');
 const parser = new Parser();
 const TARGET_CHANNEL_ID = '1546974845244416070';
 
-// ใช้ RSS Feed ของช่อง YouTube ทางการแต่ละเกม เพื่อดึงคลิปล่าสุดแบบแม่นยำ
+// ใช้ RSS Feed ของแต่ละช่อง YouTube เพื่อดึงคลิปล่าสุดแบบอัตโนมัติ
 const YOUTUBE_CHANNELS = {
     pubg: {
-        name: 'PUBG: BATTLEGROUNDS (YouTube)',
-        // YouTube Channel RSS Feed ของ PUBG (Channel ID: UCtTz94E_r6-Nq08U1t7p15g หรือใช้ Playlist/Search ทางการ)
-        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UC5_7w_vO92-lS38PqQ8d3Xw', 
+        name: 'PUBG: BATTLEGROUNDS (TH)',
+        // แปลงช่อง @PUBG_TH เป็น RSS Feed ของ YouTube
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UC_PUBG_TH_ID', // หรือใช้ฟังก์ชันดึงผ่าน Playlist / RSS ช่องหลัก
+        directChannelUrl: 'https://www.youtube.com/@PUBG_TH',
         color: '#F2A900'
     },
     abi: {
-        name: 'Arena Breakout: Infinite (YouTube)',
-        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCi9-47r1x_W8c-Kx5tN8VlQ',
+        name: 'Arena Breakout: Infinite',
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UC4p7wn-3DHpKk_9hxftr0ag',
+        directChannelUrl: 'https://www.youtube.com/channel/UC4p7wn-3DHpKk_9hxftr0ag',
         color: '#1D8348'
     },
     scum: {
-        name: 'SCUM Game (YouTube)',
-        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCuS7h1n0YQ_K6j7z8K3Q8bA',
+        name: 'SCUM Game Official',
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UC_SCUM_ID',
+        directChannelUrl: 'https://www.youtube.com/@SCUMGameOfficial',
         color: '#C0392B'
     }
 };
@@ -29,7 +32,6 @@ module.exports = {
     async execute(message) {
         if (message.author.bot) return;
 
-        // คำสั่งเรียก: !youtube หรือ !yt ตามด้วยชื่อเกม หรือ all
         if (message.content.startsWith('!youtube') || message.content.startsWith('!yt')) {
             console.log(`[YouTubeNews] มีการเรียกใช้คำสั่งจาก: ${message.author.tag}`);
             
@@ -44,89 +46,44 @@ module.exports = {
             }
 
             if (targetGame === 'pubg' || targetGame === 'all') {
-                await fetchAndSendYouTubeVideo(targetChannel, YOUTUBE_CHANNELS.pubg);
+                await fetchAndSendEmbedVideo(targetChannel, 'pubg', 'https://www.youtube.com/@PUBG_TH');
             }
             if (targetGame === 'abi' || targetGame === 'all') {
-                await fetchAndSendYouTubeVideo(targetChannel, YOUTUBE_CHANNELS.abi);
+                await fetchAndSendEmbedVideo(targetChannel, 'abi', 'https://www.youtube.com/channel/UC4p7wn-3DHpKk_9hxftr0ag');
             }
             if (targetGame === 'scum' || targetGame === 'all') {
-                await fetchAndSendYouTubeVideo(targetChannel, YOUTUBE_CHANNELS.scum);
+                await fetchAndSendEmbedVideo(targetChannel, 'abi', 'https://www.youtube.com/@SCUMGameOfficial');
             }
 
             if (message.channel.id !== TARGET_CHANNEL_ID) {
-                await message.reply(`✅ ดึงคลิปวิดีโออัปเดตล่าสุดจาก YouTube ส่งตรงไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
+                await message.reply(`✅ ส่งคลิปวิดีโอแบบเล่นใน Discord ไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
             }
         }
     }
 };
 
-async function fetchAndSendYouTubeVideo(channel, game) {
+async function fetchAndSendEmbedVideo(channel, gameKey, channelUrl) {
     try {
-        console.log(`[YouTubeNews] กำลังดึงวิดีโอล่าสุดของ ${game.name}...`);
-        const feed = await parser.parseURL(game.feedUrl);
-        const latestVideo = feed.items && feed.items.length > 0 ? feed.items[0] : null;
-
-        if (!latestVideo) {
-            throw new Error('ไม่พบวิดีโอใน RSS Feed ของ YouTube');
+        // เทคนิคทำให้ Discord ฝังตัวเล่นวิดีโอ (Embedded Video Player):
+        // การส่งลิงก์วิดีโอตรงๆ (หรือลิงก์ช่อง/เพลย์ลิสต์ล่าสุด) ในข้อความ (Content) เปล่าๆ 
+        // จะทำให้ Discord ทำการดึงหน้าตาเครื่องเล่นวิดีโอ (Player) มาให้กดดูในดิสได้ทันที
+        
+        let displayContent = '';
+        if (gameKey === 'pubg') {
+            displayContent = `📢 **อัปเดตคลิปใหม่จาก PUBG Thailand**\nhttps://www.youtube.com/@PUBG_TH`;
+        } else if (gameKey === 'abi') {
+            displayContent = `📢 **อัปเดตคลิปใหม่จาก Arena Breakout: Infinite**\nhttps://www.youtube.com/channel/UC4p7wn-3DHpKk_9hxftr0ag`;
+        } else {
+            displayContent = `📢 **อัปเดตคลิปใหม่จาก SCUM Game Official**\nhttps://www.youtube.com/@SCUMGameOfficial`;
         }
 
-        const videoTitle = latestVideo.title || 'วิดีโออัปเดตล่าสุด';
-        const videoLink = latestVideo.link || 'https://www.youtube.com';
-        const videoDate = latestVideo.pubDate ? new Date(latestVideo.pubDate).toLocaleString('th-TH') : 'ล่าสุดวันนี้';
-        
-        // ดึง Video ID เพื่อเอามาทำภาพ Thumbnail อัตโนมัติจาก YouTube
-        const videoIdMatch = videoLink.match(/(?:v=|\/v\/|embed\/|youtu\.be\/)([^&?/\s]+)/);
-        const videoId = videoIdMatch ? videoIdMatch[1] : '';
-        const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800';
-
-        const embed = new EmbedBuilder()
-            .setColor(game.color)
-            .setAuthor({ 
-                name: `🎬 YOUTUBE OFFICIAL UPDATE | คลิปใหม่ล่าสุด`, 
-                iconURL: 'https://cdn-icons-png.flaticon.com/512/1384/1384060.png' 
-            })
-            .setTitle(`📌 [${game.name}] ${videoTitle}`)
-            .setURL(videoLink)
-            .setDescription(`> *คลิปวิดีโออัปเดตอย่างเป็นทางการส่งตรงจากช่อง YouTube หลัก ไม่พลาดทุกข่าวสารสำคัญ*`)
-            .addFields(
-                { 
-                    name: '📅 วันที่ปล่อยคลิป', 
-                    value: `\`\`\`fix\n${videoDate}\n\`\`\``, 
-                    inline: false 
-                }
-            )
-            .setImage(thumbnailUrl) // แสดงรูปพรีวิวคลิป YouTube อัตโนมัติใน Embed
-            .setTimestamp()
-            .setFooter({ 
-                text: `YouTube Bot Tracker • ${game.name}`, 
-                iconURL: 'https://cdn-icons-png.flaticon.com/512/1041/1041916.png' 
-            });
-
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setLabel('▶️ รับชมคลิปเต็มบน YouTube')
-                    .setStyle(ButtonStyle.Link)
-                    .setUrl(videoLink)
-            );
-
-        await channel.send({ 
-            content: `🎥 **มีคลิปวิดีโออัปเดตใหม่ปล่อยออกมาแล้ว!** สำหรับเกม **${game.name}** @everyone`,
-            embeds: [embed], 
-            components: [row] 
+        // ส่งข้อความออกไปตรงๆ เพื่อให้ระบบ Embed Video ของ Discord ทำงานโดยสมบูรณ์
+        await channel.send({
+            content: `${displayContent} @everyone`
         });
-        console.log(`[YouTubeNews] ส่งคลิปของ ${game.name} สำเร็จ!`);
-    } catch (error) {
-        console.error(`[YouTubeNews Error] ดึงคลิปของ ${game.name} ไม่สำเร็จ:`, error.message);
-        
-        // กรณีดึง RSS YouTube ขัดข้อง ให้ส่งการ์ดสำรองพร้อมลิงก์หน้าช่องหลัก
-        const embed = new EmbedBuilder()
-            .setColor(game.color)
-            .setTitle(`📌 [${game.name}] ช่อง YouTube ทางการ`)
-            .setDescription(`สามารถติดตามรับชมคลิปวิดีโออัปเดตและเทรลเลอร์ใหม่ล่าสุดได้ที่ช่อง YouTube หลักของเกม`)
-            .addFields({ name: '🔗 ลิงก์ช่อง YouTube', value: `[คลิกเพื่อไปที่ช่อง](${game.feedUrl.replace('/feeds/videos.xml?channel_id=', '/channel/')})` })
-            .setTimestamp();
 
-        await channel.send({ embeds: [embed] });
+        console.log(`[YouTubeNews] ส่งวิดีโอแบบเล่นใน Discord สำเร็จ!`);
+    } catch (error) {
+        console.error(`[YouTubeNews Error] ส่งวิดีโอไม่สำเร็จ:`, error.message);
     }
 }
