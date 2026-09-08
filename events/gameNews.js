@@ -4,20 +4,22 @@ const Parser = require('rss-parser');
 const parser = new Parser();
 const TARGET_CHANNEL_ID = '1546974845244416070';
 
-const GAME_CONFIGS = {
+// ใช้ RSS Feed ของช่อง YouTube ทางการแต่ละเกม เพื่อดึงคลิปล่าสุดแบบแม่นยำ
+const YOUTUBE_CHANNELS = {
     pubg: {
-        name: 'PUBG: BATTLEGROUNDS',
-        feedUrl: 'https://pubg.com/en/rss/news',
+        name: 'PUBG: BATTLEGROUNDS (YouTube)',
+        // YouTube Channel RSS Feed ของ PUBG (Channel ID: UCtTz94E_r6-Nq08U1t7p15g หรือใช้ Playlist/Search ทางการ)
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UC5_7w_vO92-lS38PqQ8d3Xw', 
         color: '#F2A900'
     },
     abi: {
-        name: 'Arena Breakout: Infinite',
-        feedUrl: 'https://arenabreakoutinfinite.com/news/rss',
+        name: 'Arena Breakout: Infinite (YouTube)',
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCi9-47r1x_W8c-Kx5tN8VlQ',
         color: '#1D8348'
     },
     scum: {
-        name: 'SCUM',
-        feedUrl: 'https://scumgame.com/news/rss',
+        name: 'SCUM Game (YouTube)',
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCuS7h1n0YQ_K6j7z8K3Q8bA',
         color: '#C0392B'
     }
 };
@@ -27,8 +29,9 @@ module.exports = {
     async execute(message) {
         if (message.author.bot) return;
 
-        if (message.content.startsWith('!news')) {
-            console.log(`[GameNews] มีการเรียกใช้คำสั่ง !news จาก: ${message.author.tag}`);
+        // คำสั่งเรียก: !youtube หรือ !yt ตามด้วยชื่อเกม หรือ all
+        if (message.content.startsWith('!youtube') || message.content.startsWith('!yt')) {
+            console.log(`[YouTubeNews] มีการเรียกใช้คำสั่งจาก: ${message.author.tag}`);
             
             const args = message.content.split(' ');
             const targetGame = args[1] ? args[1].toLowerCase() : 'all';
@@ -36,94 +39,92 @@ module.exports = {
             const targetChannel = message.client.channels.cache.get(TARGET_CHANNEL_ID);
             
             if (!targetChannel) {
-                console.log(`[GameNews Error] ไม่พบห้อง ID: ${TARGET_CHANNEL_ID}`);
+                console.log(`[YouTubeNews Error] ไม่พบห้อง ID: ${TARGET_CHANNEL_ID}`);
                 return message.reply(`❌ ไม่พบห้องเป้าหมาย (Channel ID: ${TARGET_CHANNEL_ID})`);
             }
 
             if (targetGame === 'pubg' || targetGame === 'all') {
-                await fetchAndSendLatestNews(targetChannel, GAME_CONFIGS.pubg);
+                await fetchAndSendYouTubeVideo(targetChannel, YOUTUBE_CHANNELS.pubg);
             }
             if (targetGame === 'abi' || targetGame === 'all') {
-                await fetchAndSendLatestNews(targetChannel, GAME_CONFIGS.abi);
+                await fetchAndSendYouTubeVideo(targetChannel, YOUTUBE_CHANNELS.abi);
             }
             if (targetGame === 'scum' || targetGame === 'all') {
-                await fetchAndSendLatestNews(targetChannel, GAME_CONFIGS.scum);
+                await fetchAndSendYouTubeVideo(targetChannel, YOUTUBE_CHANNELS.scum);
             }
 
             if (message.channel.id !== TARGET_CHANNEL_ID) {
-                await message.reply(`✅ ดึงเนื้อหาข่าวสารล่าสุดพร้อมข้อความประกาศส่งตรงไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
+                await message.reply(`✅ ดึงคลิปวิดีโออัปเดตล่าสุดจาก YouTube ส่งตรงไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
             }
         }
     }
 };
 
-async function fetchAndSendLatestNews(channel, game) {
+async function fetchAndSendYouTubeVideo(channel, game) {
     try {
-        console.log(`[GameNews] กำลังดึงเนื้อหาข่าวของเกม ${game.name}...`);
+        console.log(`[YouTubeNews] กำลังดึงวิดีโอล่าสุดของ ${game.name}...`);
         const feed = await parser.parseURL(game.feedUrl);
-        const latestItem = feed.items && feed.items.length > 0 ? feed.items[0] : null;
+        const latestVideo = feed.items && feed.items.length > 0 ? feed.items[0] : null;
 
-        if (!latestItem) {
-            throw new Error('ไม่พบข้อมูลใน RSS Feed');
+        if (!latestVideo) {
+            throw new Error('ไม่พบวิดีโอใน RSS Feed ของ YouTube');
         }
 
-        const newsTitle = latestItem.title || 'ประกาศอัปเดตล่าสุด';
-        const newsLink = latestItem.link || game.feedUrl;
-        const newsDate = latestItem.pubDate ? new Date(latestItem.pubDate).toLocaleString('th-TH') : 'ล่าสุดวันนี้';
+        const videoTitle = latestVideo.title || 'วิดีโออัปเดตล่าสุด';
+        const videoLink = latestVideo.link || 'https://www.youtube.com';
+        const videoDate = latestVideo.pubDate ? new Date(latestVideo.pubDate).toLocaleString('th-TH') : 'ล่าสุดวันนี้';
         
-        // ดึงเนื้อหาข้อความ (Description หรือ Content) จาก RSS มาทำความสะอาด (ตัด HTML Tags เบื้องต้นออกเพื่อให้แสดงผลใน Discord สวยๆ)
-        let rawContent = latestItem.contentSnippet || latestItem.content || latestItem.summary || 'คลิกดูรายละเอียดเนื้อหาฉบับเต็มได้จากลิงก์ด้านล่าง';
-        
-        // ตัดข้อความให้สั้นกระชับไม่เกิน 300 ตัวอักษร เพื่อไม่ให้ Embed ยาวเกินไป
-        if (rawContent.length > 300) {
-            rawContent = rawContent.substring(0, 300) + '...';
-        }
+        // ดึง Video ID เพื่อเอามาทำภาพ Thumbnail อัตโนมัติจาก YouTube
+        const videoIdMatch = videoLink.match(/(?:v=|\/v\/|embed\/|youtu\.be\/)([^&?/\s]+)/);
+        const videoId = videoIdMatch ? videoIdMatch[1] : '';
+        const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800';
 
         const embed = new EmbedBuilder()
             .setColor(game.color)
             .setAuthor({ 
-                name: `🎮 GAME NEWS TRACKER | อัปเดตเนื้อหาล่าสุด`, 
-                iconURL: 'https://cdn-icons-png.flaticon.com/512/3334/3334886.png' 
+                name: `🎬 YOUTUBE OFFICIAL UPDATE | คลิปใหม่ล่าสุด`, 
+                iconURL: 'https://cdn-icons-png.flaticon.com/512/1384/1384060.png' 
             })
-            .setTitle(`📌 [${game.name}] ${newsTitle}`)
-            .setURL(newsLink)
-            .setDescription(`> ${rawContent}`) // แสดงเนื้อหาโพสต์จริงๆ ตรงนี้
+            .setTitle(`📌 [${game.name}] ${videoTitle}`)
+            .setURL(videoLink)
+            .setDescription(`> *คลิปวิดีโออัปเดตอย่างเป็นทางการส่งตรงจากช่อง YouTube หลัก ไม่พลาดทุกข่าวสารสำคัญ*`)
             .addFields(
                 { 
-                    name: '📅 วันที่เผยแพร่', 
-                    value: `\`\`\`fix\n${newsDate}\n\`\`\``, 
+                    name: '📅 วันที่ปล่อยคลิป', 
+                    value: `\`\`\`fix\n${videoDate}\n\`\`\``, 
                     inline: false 
                 }
             )
+            .setImage(thumbnailUrl) // แสดงรูปพรีวิวคลิป YouTube อัตโนมัติใน Embed
             .setTimestamp()
             .setFooter({ 
-                text: `ระบบดึงข้อความอัตโนมัติ • ${game.name}`, 
+                text: `YouTube Bot Tracker • ${game.name}`, 
                 iconURL: 'https://cdn-icons-png.flaticon.com/512/1041/1041916.png' 
             });
 
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setLabel('🌐 อ่านเนื้อหาฉบับเต็ม')
+                    .setLabel('▶️ รับชมคลิปเต็มบน YouTube')
                     .setStyle(ButtonStyle.Link)
-                    .setUrl(newsLink)
+                    .setUrl(videoLink)
             );
 
         await channel.send({ 
-            content: `📢 **ประกาศอัปเดตใหม่!** สำหรับเกม **${game.name}** @everyone`,
+            content: `🎥 **มีคลิปวิดีโออัปเดตใหม่ปล่อยออกมาแล้ว!** สำหรับเกม **${game.name}** @everyone`,
             embeds: [embed], 
             components: [row] 
         });
-        console.log(`[GameNews] โพสต์เนื้อหาของเกม ${game.name} สำเร็จ!`);
+        console.log(`[YouTubeNews] ส่งคลิปของ ${game.name} สำเร็จ!`);
     } catch (error) {
-        console.error(`[GameNews Error] ดึงข้อมูลของ ${game.name} ไม่สำเร็จ:`, error.message);
+        console.error(`[YouTubeNews Error] ดึงคลิปของ ${game.name} ไม่สำเร็จ:`, error.message);
         
-        // กรณีดึง RSS ไม่สำเร็จ ส่งการ์ดสำรองพร้อมลิงก์ตรง
+        // กรณีดึง RSS YouTube ขัดข้อง ให้ส่งการ์ดสำรองพร้อมลิงก์หน้าช่องหลัก
         const embed = new EmbedBuilder()
             .setColor(game.color)
-            .setTitle(`📌 [${game.name}] อัปเดตล่าสุด`)
-            .setDescription(`ไม่สามารถดึงข้อความตัวอย่างอัตโนมัติได้ในขณะนี้ สามารถติดตามรายละเอียดแพตช์ล่าสุดได้ที่เว็บไซต์ทางการ`)
-            .addFields({ name: '🔗 ลิงก์ทางการ', value: `[คลิกเพื่อดูรายละเอียด](${game.feedUrl})` })
+            .setTitle(`📌 [${game.name}] ช่อง YouTube ทางการ`)
+            .setDescription(`สามารถติดตามรับชมคลิปวิดีโออัปเดตและเทรลเลอร์ใหม่ล่าสุดได้ที่ช่อง YouTube หลักของเกม`)
+            .addFields({ name: '🔗 ลิงก์ช่อง YouTube', value: `[คลิกเพื่อไปที่ช่อง](${game.feedUrl.replace('/feeds/videos.xml?channel_id=', '/channel/')})` })
             .setTimestamp();
 
         await channel.send({ embeds: [embed] });
