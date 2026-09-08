@@ -3,7 +3,7 @@ const Parser = require('rss-parser');
 const parser = new Parser();
 const TARGET_CHANNEL_ID = '1546974845244416070';
 
-// ใช้ Channel ID ที่ถูกต้องครบถ้วนทั้ง 3 เกม
+// รวมช่อง YouTube ทางการครบทั้ง 4 เกม
 const YOUTUBE_CHANNELS = {
     pubg: {
         name: 'PUBG: BATTLEGROUNDS (TH)',
@@ -19,6 +19,11 @@ const YOUTUBE_CHANNELS = {
         name: 'SCUM Game Official',
         feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCri5b4gBVVNQr5axQ8nPHCQ',
         fallbackLink: 'https://www.youtube.com/@SCUMGameOfficial'
+    },
+    valorant: {
+        name: 'VALORANT',
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCNcpe0OrmnOHIUB33bVFbfQ',
+        fallbackLink: 'https://www.youtube.com/@VALORANT'
     }
 };
 
@@ -48,6 +53,9 @@ module.exports = {
             }
             if (targetGame === 'scum' || targetGame === 'all') {
                 await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.scum);
+            }
+            if (targetGame === 'valorant' || targetGame === 'val' || targetGame === 'all') {
+                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.valorant);
             }
 
             if (message.channel.id !== TARGET_CHANNEL_ID) {
