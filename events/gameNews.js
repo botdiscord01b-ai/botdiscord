@@ -3,7 +3,7 @@ const Parser = require('rss-parser');
 const parser = new Parser();
 const TARGET_CHANNEL_ID = '1546974845244416070';
 
-// รวมช่อง YouTube ทางการครบทั้ง 4 เกม
+// รวมช่อง YouTube ทางการครบทั้ง 4 เกม พร้อม Channel ID ที่ถูกต้อง
 const YOUTUBE_CHANNELS = {
     pubg: {
         name: 'PUBG: BATTLEGROUNDS (TH)',
@@ -59,7 +59,7 @@ module.exports = {
             }
 
             if (message.channel.id !== TARGET_CHANNEL_ID) {
-                await message.reply(`✅ ดึงคลิปล่าสุดส่งตรงไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
+                await message.reply(`✅ ดึงคลิปล่าสุดและทำความสะอาดโพสต์ซ้ำเรียบร้อยแล้ว!`);
             }
         }
     }
@@ -79,7 +79,28 @@ async function fetchAndSendLatestVideo(channel, game) {
         const videoTitle = latestVideo.title;
         const videoLink = latestVideo.link;
 
-        // ส่งลิงก์ตรงเพื่อให้ Discord ทำการ Embed ตัวเล่นวิดีโอขึ้นมาให้กดดูได้ทันที
+        // ดึง Video ID ออกมาเพื่อใช้ตรวจจับข้อความซ้ำได้อย่างแม่นยำ
+        const videoIdMatch = videoLink.match(/(?:v=|\/v\/|embed\/|youtu\.be\/)([^&?/\s]+)/);
+        const videoId = videoIdMatch ? videoIdMatch[1] : videoLink;
+
+        // ดึงข้อความล่าสุดในห้องเป้าหมายมาตรวจสอบ (ดึงมา 50 ข้อความล่าสุด)
+        const messages = await channel.messages.fetch({ limit: 50 });
+        
+        // ค้นหาข้อความเดิมที่บอทเคยส่งและมีลิงก์หรือ Video ID เดียวกัน
+        const duplicateMessages = messages.filter(msg => 
+            msg.author.id === channel.client.user.id && 
+            msg.content.includes(videoId)
+        );
+
+        // ถ้าพบข้อความซ้ำ ให้ทำการลบออกอัตโนมัติ
+        if (duplicateMessages.size > 0) {
+            console.log(`[YouTubeNews] พบโพสต์ซ้ำของ ${game.name} จำนวน ${duplicateMessages.size} ข้อความ กำลังลบ...`);
+            for (const [msgId, oldMsg] of duplicateMessages) {
+                await oldMsg.delete().catch(err => console.log('ไม่สามารถลบข้อความเก่าได้:', err.message));
+            }
+        }
+
+        // ส่งคลิปล่าสุดตัวใหม่เข้าไปในห้อง
         await channel.send({
             content: `🎬 **คลิปวิดีโออัปเดตใหม่ล่าสุดจาก ${game.name}**\n📌 **${videoTitle}**\n${videoLink} @everyone`
         });
