@@ -38,7 +38,6 @@ async function fetchAndSendRealSteamGames(channel, type) {
     try {
         console.log(`[SteamNews] กำลังเชื่อมต่อดึงข้อมูล Steam (${type})...`);
         
-        // ดึงข้อมูลจริงจาก Steam Featured API (ดึงเกมลดราคาและเกมมาแรง)
         const response = await fetch('https://store.steampowered.com/api/featured?l=thai');
         const data = await response.json();
 
@@ -53,7 +52,6 @@ async function fetchAndSendRealSteamGames(channel, type) {
             throw new Error('ไม่พบข้อมูลเกมจาก Steam API');
         }
 
-        // สุ่มหยิบเกมแรกสุดหรือวนลูปดึงข้อมูลเกมจริง
         const game = gameList[0];
         const gameName = game.name || 'Unknown Game';
         const appId = game.id;
@@ -98,15 +96,16 @@ async function fetchAndSendRealSteamGames(channel, type) {
             .setTimestamp()
             .setFooter({ text: `Steam Live API • ID: ${idKey}` });
 
+        // แก้ไขเป็น .setUrl() ตัวแอลพิมพ์เล็ก
         const button = new ButtonBuilder()
             .setLabel('🛒 ดูรายละเอียดและกดซื้อบน Steam')
             .setStyle(ButtonStyle.Link)
-            .setURL(storeUrl);
+            .setUrl(storeUrl);
 
         const row = new ActionRowBuilder().addComponents(button);
 
         await channel.send({
-            content: `||${idKey}||`, // ซ่อนรหัสเช็กซ้ำ
+            content: `||${idKey}||`,
             embeds: [embed],
             components: [row]
         });
