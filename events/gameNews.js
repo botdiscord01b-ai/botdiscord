@@ -21,10 +21,10 @@ module.exports = {
             }
 
             if (action === 'new' || action === 'all') {
-                await fetchAndSendRealSteamGames(targetChannel, 'new');
+                await fetchAndSendSteamGame(targetChannel, 'new');
             }
             if (action === 'sale' || action === 'all') {
-                await fetchAndSendRealSteamGames(targetChannel, 'sale');
+                await fetchAndSendSteamGame(targetChannel, 'sale');
             }
 
             if (message.channel.id !== STEAM_CHANNEL_ID) {
@@ -34,38 +34,51 @@ module.exports = {
     }
 };
 
-async function fetchAndSendRealSteamGames(channel, type) {
+async function fetchAndSendSteamGame(channel, type) {
     try {
-        console.log(`[SteamNews] กำลังเชื่อมต่อดึงข้อมูล Steam (${type})...`);
+        console.log(`[SteamNews] กำลังค้นหาข้อมูลเกม Steam (${type})...`);
         
-        const response = await fetch('https://store.steampowered.com/api/featured?l=thai');
+        // ใช้ Steam Search API เพื่อดึงรายชื่อเกมยอดฮิตหรือเกมลดราคาปัจจุบัน
+        const searchUrl = type === 'sale' 
+            ? 'https://store.steampowered.com/search/results/?query=&category1=998&specials=1&json=1&cc=TH'
+            : 'https://store.steampowered.com/search/results/?query=&sort_by=Released_DESC&json=1&cc=TH';
+
+        const response = await fetch(searchUrl);
         const data = await response.json();
 
-        let gameList = [];
-        if (type === 'sale') {
-            gameList = data.specials?.items || [];
-        } else {
-            gameList = data.coming_soon?.items || data.recommendations?.items || [];
-        }
-
-        if (!gameList || gameList.length === 0) {
+        if (!data.items || data.items.length === 0) {
             throw new Error('ไม่พบข้อมูลเกมจาก Steam API');
         }
 
-        const game = gameList[0];
-        const gameName = game.name || 'Unknown Game';
-        const appId = game.id;
-        const headerImage = game.header_image || game.large_capsule_image;
-        const storeUrl = `https://store.steampowered.com/app/${appId}`;
+        // สุ่มหยิบเกมขึ้นมา 1 เกมจากผลการค้นหา
+        const randomIndex = Math.floor(Math.random() * Math.min(data.items.length, 10));
+        const selectedGame = data.items[randomIndex];
         
-        let priceText = 'เปิดให้เล่นแล้ว';
-        if (game.discounted) {
-            const originalPrice = (game.original_price / 100).toLocaleString();
-            const finalPrice = (game.final_price / 100).toLocaleString();
-            priceText = `~~฿${originalPrice}~~ **฿${finalPrice}** (-${game.discount_percent}%)`;
-        } else if (game.final_price) {
-            const price = (game.final_price / 100).toLocaleString();
-            priceText = `฿${price}`;
+        const appId = selectedGame.id;
+        const gameName = selectedGame.name;
+        const storeUrl = selectedGame.civ_url || `https://store.steampowered.com/app/${appId}`;
+        const headerImage = selectedGame.logo;
+
+        // ดึงรายละเอียดราคาเพิ่มเติมของ AppID นั้นๆ
+        const detailRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&cc=TH&l=thai`);
+        const detailData = await detailRes.json();
+
+        let priceText = 'ตรวจสอบราคาบนหน้าสโตร์';
+        if (detailData[appId] && detailData[appId].success) {
+            const priceOverview = detailData[appId].data.price_overview;
+            if (priceOverview) {
+                const finalFormatted = priceOverview.final_formatted;
+                const initialFormatted = priceOverview.initial_formatted;
+                const discountPercent = priceOverview.discount_percent;
+
+                if (discountPercent > 0) {
+                    priceText = `~~${initialFormatted}~~ **${finalFormatted}** (-${discountPercent}%)`;
+                } else {
+                    priceText = `${finalFormatted}`;
+                }
+            } else if (detailData[appId].data.is_free) {
+                priceText = 'เล่นฟรี (Free to Play)';
+            }
         }
 
         const idKey = `steam_${type}_${appId}`;
@@ -91,16 +104,15 @@ async function fetchAndSendRealSteamGames(channel, type) {
                 iconURL: 'https://cdn-icons-png.flaticon.com/512/220/220229.png' 
             })
             .setTitle(`📌 ${gameName}`)
-            .setDescription(`🏷️ **ราคา / สถานะ:** ${priceText}\n\n> *ข้อมูลอัปเดตสดตรงจาก Steam Store*`)
+            .setDescription(`🏷️ **ราคา:** ${priceText}\n\n> *ข้อมูลอัปเดตสดตรงจาก Steam Store*`)
             .setImage(headerImage)
             .setTimestamp()
             .setFooter({ text: `Steam Live API • ID: ${idKey}` });
 
-        // แก้ไขเป็น .setUrl() ตัวแอลพิมพ์เล็ก
         const button = new ButtonBuilder()
             .setLabel('🛒 ดูรายละเอียดและกดซื้อบน Steam')
             .setStyle(ButtonStyle.Link)
-            .setUrl(storeUrl);
+            .setUrl(storeUrl); // ใช้ .setUrl ตัวแอลเล็กถูกต้องตามโครงสร้าง
 
         const row = new ActionRowBuilder().addComponents(button);
 
