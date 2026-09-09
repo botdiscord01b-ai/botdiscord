@@ -3,7 +3,7 @@ const Parser = require('rss-parser');
 const parser = new Parser();
 const TARGET_CHANNEL_ID = '1546974845244416070';
 
-// รวมช่อง YouTube ทางการครบทั้ง 4 เกม พร้อม Channel ID ที่ถูกต้อง
+// รวมช่อง YouTube ทางการทั้งหมด พร้อมระบบตรวจสอบและลบโพสต์ซ้ำอัตโนมัติ
 const YOUTUBE_CHANNELS = {
     pubg: {
         name: 'PUBG: BATTLEGROUNDS (TH)',
@@ -24,6 +24,11 @@ const YOUTUBE_CHANNELS = {
         name: 'VALORANT',
         feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCNcpe0OrmnOHIUB33bVFbfQ',
         fallbackLink: 'https://www.youtube.com/@VALORANT'
+    },
+    cs2: {
+        name: 'Counter-Strike 2',
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UC247Fi1BtjfvurRjMX1J48Q',
+        fallbackLink: 'https://www.youtube.com/channel/UC247Fi1BtjfvurRjMX1J48Q'
     }
 };
 
@@ -56,6 +61,9 @@ module.exports = {
             }
             if (targetGame === 'valorant' || targetGame === 'val' || targetGame === 'all') {
                 await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.valorant);
+            }
+            if (targetGame === 'cs2' || targetGame === 'counter' || targetGame === 'all') {
+                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.cs2);
             }
 
             if (message.channel.id !== TARGET_CHANNEL_ID) {
