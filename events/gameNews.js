@@ -38,7 +38,6 @@ async function fetchAndSendSteamGame(channel, type) {
     try {
         console.log(`[SteamNews] กำลังค้นหาข้อมูลเกม Steam (${type})...`);
         
-        // ใช้ Steam Search API เพื่อดึงรายชื่อเกมยอดฮิตหรือเกมลดราคาปัจจุบัน
         const searchUrl = type === 'sale' 
             ? 'https://store.steampowered.com/search/results/?query=&category1=998&specials=1&json=1&cc=TH'
             : 'https://store.steampowered.com/search/results/?query=&sort_by=Released_DESC&json=1&cc=TH';
@@ -55,30 +54,35 @@ async function fetchAndSendSteamGame(channel, type) {
         const selectedGame = data.items[randomIndex];
         
         const appId = selectedGame.id;
-        const gameName = selectedGame.name;
-        const storeUrl = selectedGame.civ_url || `https://store.steampowered.com/app/${appId}`;
-        const headerImage = selectedGame.logo;
+        const gameName = selectedGame.name || 'Unknown Game';
+        const storeUrl = `https://store.steampowered.com/app/${appId}`;
+        const headerImage = selectedGame.tiny_image || selectedGame.logo || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800';
 
         // ดึงรายละเอียดราคาเพิ่มเติมของ AppID นั้นๆ
-        const detailRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&cc=TH&l=thai`);
-        const detailData = await detailRes.json();
-
         let priceText = 'ตรวจสอบราคาบนหน้าสโตร์';
-        if (detailData[appId] && detailData[appId].success) {
-            const priceOverview = detailData[appId].data.price_overview;
-            if (priceOverview) {
-                const finalFormatted = priceOverview.final_formatted;
-                const initialFormatted = priceOverview.initial_formatted;
-                const discountPercent = priceOverview.discount_percent;
+        try {
+            const detailRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&cc=TH&l=thai`);
+            const detailData = await detailRes.json();
 
-                if (discountPercent > 0) {
-                    priceText = `~~${initialFormatted}~~ **${finalFormatted}** (-${discountPercent}%)`;
-                } else {
-                    priceText = `${finalFormatted}`;
+            if (detailData && detailData[appId] && detailData[appId].success) {
+                const gameDetails = detailData[appId].data;
+                if (gameDetails && gameDetails.price_overview) {
+                    const priceOverview = gameDetails.price_overview;
+                    const finalFormatted = priceOverview.final_formatted;
+                    const initialFormatted = priceOverview.initial_formatted;
+                    const discountPercent = priceOverview.discount_percent;
+
+                    if (discountPercent > 0) {
+                        priceText = `~~${initialFormatted}~~ **${finalFormatted}** (-${discountPercent}%)`;
+                    } else {
+                        priceText = `${finalFormatted}`;
+                    }
+                } else if (gameDetails && gameDetails.is_free) {
+                    priceText = 'เล่นฟรี (Free to Play)';
                 }
-            } else if (detailData[appId].data.is_free) {
-                priceText = 'เล่นฟรี (Free to Play)';
             }
+        } catch (priceErr) {
+            console.log(`[SteamNews Warning] ไม่สามารถดึงราคารายละเอียดได้ ใช้ค่าเริ่มต้นแทน:`, priceErr.message);
         }
 
         const idKey = `steam_${type}_${appId}`;
@@ -112,7 +116,7 @@ async function fetchAndSendSteamGame(channel, type) {
         const button = new ButtonBuilder()
             .setLabel('🛒 ดูรายละเอียดและกดซื้อบน Steam')
             .setStyle(ButtonStyle.Link)
-            .setUrl(storeUrl); // ใช้ .setUrl ตัวแอลเล็กถูกต้องตามโครงสร้าง
+            .setUrl(storeUrl);
 
         const row = new ActionRowBuilder().addComponents(button);
 
