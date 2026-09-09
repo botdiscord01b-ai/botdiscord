@@ -8,7 +8,7 @@ module.exports = {
         if (message.author.bot) return;
 
         if (message.content.startsWith('!steam') || message.content.startsWith('!st')) {
-            console.log(`[SteamNews] มีการเรียกใช้คำสั่ง Steam จาก: ${message.author.tag}`);
+            console.log(`[SteamNews] กำลังดึงข้อมูลจริงจาก Steam API โดย: ${message.author.tag}`);
             
             const args = message.content.split(' ');
             const action = args[1] ? args[1].toLowerCase() : 'all';
@@ -21,54 +21,66 @@ module.exports = {
             }
 
             if (action === 'new' || action === 'all') {
-                await fetchAndSendSteamGames(targetChannel, 'new');
+                await fetchAndSendRealSteamGames(targetChannel, 'new');
             }
             if (action === 'sale' || action === 'all') {
-                await fetchAndSendSteamGames(targetChannel, 'sale');
+                await fetchAndSendRealSteamGames(targetChannel, 'sale');
             }
 
             if (message.channel.id !== STEAM_CHANNEL_ID) {
-                await message.reply(`✅ ดึงข้อมูลเกม Steam ส่งไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
+                await message.reply(`✅ ดึงข้อมูลเกมจริงจาก Steam ส่งไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
             }
         }
     }
 };
 
-async function fetchAndSendSteamGames(channel, type) {
+async function fetchAndSendRealSteamGames(channel, type) {
     try {
-        console.log(`[SteamNews] กำลังดึงข้อมูล Steam ประเภท: ${type}...`);
+        console.log(`[SteamNews] กำลังเชื่อมต่อดึงข้อมูล Steam (${type})...`);
         
-        let gameData = {};
-        
-        if (type === 'new') {
-            gameData = {
-                title: '🔥 เกมมาใหม่บน Steam แนะนำ!',
-                gameName: 'ตัวอย่างเกมใหม่ยอดฮิต (Steam New Release)',
-                price: 'ราคาปกติ / เปิดให้เล่นแล้ว',
-                url: 'https://store.steampowered.com/',
-                image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800',
-                idKey: 'steam_new_game_id_01'
-            };
+        // ดึงข้อมูลจริงจาก Steam Featured API (ดึงเกมลดราคาและเกมมาแรง)
+        const response = await fetch('https://store.steampowered.com/api/featured?l=thai');
+        const data = await response.json();
+
+        let gameList = [];
+        if (type === 'sale') {
+            gameList = data.specials?.items || [];
         } else {
-            gameData = {
-                title: '💰 เกมลดราคาพิเศษบน Steam!',
-                gameName: 'ตัวอย่างเกมลดราคาเด็ด (Steam Special Sale)',
-                price: 'ลดเหลือ ฿XXX (-50%)',
-                url: 'https://store.steampowered.com/',
-                image: 'https://images.unsplash.com/photo-1612287233302-3ff1a90ccec1?w=800',
-                idKey: 'steam_sale_game_id_01'
-            };
+            gameList = data.coming_soon?.items || data.recommendations?.items || [];
         }
 
-        // ระบบตรวจสอบและลบโพสต์ซ้ำอัตโนมัติ
+        if (!gameList || gameList.length === 0) {
+            throw new Error('ไม่พบข้อมูลเกมจาก Steam API');
+        }
+
+        // สุ่มหยิบเกมแรกสุดหรือวนลูปดึงข้อมูลเกมจริง
+        const game = gameList[0];
+        const gameName = game.name || 'Unknown Game';
+        const appId = game.id;
+        const headerImage = game.header_image || game.large_capsule_image;
+        const storeUrl = `https://store.steampowered.com/app/${appId}`;
+        
+        let priceText = 'เปิดให้เล่นแล้ว';
+        if (game.discounted) {
+            const originalPrice = (game.original_price / 100).toLocaleString();
+            const finalPrice = (game.final_price / 100).toLocaleString();
+            priceText = `~~฿${originalPrice}~~ **฿${finalPrice}** (-${game.discount_percent}%)`;
+        } else if (game.final_price) {
+            const price = (game.final_price / 100).toLocaleString();
+            priceText = `฿${price}`;
+        }
+
+        const idKey = `steam_${type}_${appId}`;
+
+        // ระบบตรวจสอบและลบโพสต์เกมเดิมที่ซ้ำอัตโนมัติ
         const messages = await channel.messages.fetch({ limit: 50 });
         const duplicateMessages = messages.filter(msg => 
             msg.author.id === channel.client.user.id && 
-            msg.content.includes(gameData.idKey)
+            msg.content.includes(idKey)
         );
 
         if (duplicateMessages.size > 0) {
-            console.log(`[SteamNews] พบโพสต์เกมซ้ำ กำลังทำความสะอาด ${duplicateMessages.size} ข้อความ...`);
+            console.log(`[SteamNews] พบโพสต์เกมซ้ำ (${gameName}) กำลังทำความสะอาด...`);
             for (const [msgId, oldMsg] of duplicateMessages) {
                 await oldMsg.delete().catch(err => console.log('ไม่สามารถลบข้อความเก่าได้:', err.message));
             }
@@ -77,31 +89,30 @@ async function fetchAndSendSteamGames(channel, type) {
         const embed = new EmbedBuilder()
             .setColor(type === 'new' ? '#1b2838' : '#66c0f4')
             .setAuthor({ 
-                name: `🎮 STEAM STORE UPDATE | อัปเดตวงการเกม`, 
+                name: type === 'new' ? `🔥 STEAM NEW RELEASE | เกมมาใหม่` : `💰 STEAM SPECIAL SALE | เกมลดราคาพิเศษ`, 
                 iconURL: 'https://cdn-icons-png.flaticon.com/512/220/220229.png' 
             })
-            .setTitle(gameData.title)
-            .setDescription(`**ชื่อเกม:** ${gameData.gameName}\n**สถานะ:** ${gameData.price}`)
-            .setImage(gameData.image)
+            .setTitle(`📌 ${gameName}`)
+            .setDescription(`🏷️ **ราคา / สถานะ:** ${priceText}\n\n> *ข้อมูลอัปเดตสดตรงจาก Steam Store*`)
+            .setImage(headerImage)
             .setTimestamp()
-            .setFooter({ text: `Steam Bot Tracker • ID: ${gameData.idKey}` });
+            .setFooter({ text: `Steam Live API • ID: ${idKey}` });
 
-        // แก้ไขการสร้างปุ่มลิงก์ให้ถูกต้อง
         const button = new ButtonBuilder()
-            .setLabel('🛒 ไปที่หน้า Store บน Steam')
+            .setLabel('🛒 ดูรายละเอียดและกดซื้อบน Steam')
             .setStyle(ButtonStyle.Link)
-            .setURL(gameData.url);
+            .setURL(storeUrl);
 
         const row = new ActionRowBuilder().addComponents(button);
 
         await channel.send({
-            content: `||${gameData.idKey}||`,
+            content: `||${idKey}||`, // ซ่อนรหัสเช็กซ้ำ
             embeds: [embed],
             components: [row]
         });
 
-        console.log(`[SteamNews] ส่งข้อมูลเกม Steam สำเร็จ!`);
+        console.log(`[SteamNews] โพสต์เกม ${gameName} สำเร็จ!`);
     } catch (error) {
-        console.error(`[SteamNews Error] ไม่สามารถดึงข้อมูล Steam ได้:`, error.message);
+        console.error(`[SteamNews Error] ดึงข้อมูล Steam จริงไม่สำเร็จ:`, error.message);
     }
 }
