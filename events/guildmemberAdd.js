@@ -10,9 +10,9 @@ module.exports = {
             const channel = await member.guild.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
             if (!channel) return;
 
-            // ดึงไฟล์รูปภาพจากในโปรเจกต์
+            // ชี้ตำแหน่งไฟล์ welcome.jpg ที่อยู่นอกโฟลเดอร์ events
             const imagePath = path.join(__dirname, '../welcome.jpg');
-            const file = new AttachmentBuilder(imagePath);
+            const file = new AttachmentBuilder(imagePath, { name: 'welcome.jpg' });
 
             const welcomeEmbed = new EmbedBuilder()
                 .setColor('#00ffcc')
@@ -30,7 +30,7 @@ module.exports = {
             await channel.send({
                 content: `🎉 ยินดีต้อนรับ ${member} เข้าสู่เซิร์ฟเวอร์ครับ!`,
                 embeds: [welcomeEmbed],
-                files: [file] // ส่งไฟล์รูปภาพแนบไปด้วย
+                files: [file]
             });
 
             console.log(`[WELCOME] ส่งข้อความต้อนรับให้ ${member.user.tag} สำเร็จ`);
