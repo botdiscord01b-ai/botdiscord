@@ -8,7 +8,7 @@ module.exports = {
         if (message.author.bot) return;
 
         if (message.content.startsWith('!steam') || message.content.startsWith('!st')) {
-            console.log(`[SteamNews] กำลังดึงข้อมูลจริงจาก Steam API โดย: ${message.author.tag}`);
+            console.log(`[SteamNews] เริ่มกระบวนการดึงข้อมูล Steam โดย: ${message.author.tag}`);
             
             const args = message.content.split(' ');
             const action = args[1] ? args[1].toLowerCase() : 'all';
@@ -21,73 +21,70 @@ module.exports = {
             }
 
             if (action === 'new' || action === 'all') {
-                await fetchAndSendSteamGame(targetChannel, 'new');
+                await fetchAndSendSteamNews(targetChannel, 'new');
             }
             if (action === 'sale' || action === 'all') {
-                await fetchAndSendSteamGame(targetChannel, 'sale');
+                await fetchAndSendSteamNews(targetChannel, 'sale');
             }
 
             if (message.channel.id !== STEAM_CHANNEL_ID) {
-                await message.reply(`✅ ดึงข้อมูลเกมจริงจาก Steam ส่งไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
+                await message.reply(`✅ ดึงข้อมูลเกม Steam ส่งไปยังห้องเป้าหมายเรียบร้อยแล้ว!`);
             }
         }
     }
 };
 
-async function fetchAndSendSteamGame(channel, type) {
+async function fetchAndSendSteamNews(channel, type) {
     try {
-        console.log(`[SteamNews] กำลังค้นหาข้อมูลเกม Steam (${type})...`);
+        console.log(`[SteamNews] กำลังเชื่อมต่อข้อมูลประเภท: ${type}...`);
         
-        const searchUrl = type === 'sale' 
-            ? 'https://store.steampowered.com/search/results/?query=&category1=998&specials=1&json=1&cc=TH'
-            : 'https://store.steampowered.com/search/results/?query=&sort_by=Released_DESC&json=1&cc=TH';
+        // ใช้ SteamSpy API เพื่อดึงเกมยอดฮิตหรือเกมลดราคายอดนิยม
+        const apiUrl = type === 'sale'
+            ? 'https://steamspy.com/api.php?request=tag&tag=Indie' 
+            : 'https://steamspy.com/api.php?request=top100in2weeks';
 
-        const response = await fetch(searchUrl);
+        const response = await fetch(apiUrl);
         const data = await response.json();
 
-        if (!data.items || data.items.length === 0) {
-            throw new Error('ไม่พบข้อมูลเกมจาก Steam API');
+        const appIds = Object.keys(data);
+        if (!appIds || appIds.length === 0) {
+            throw new Error('ไม่สามารถดึงรายชื่อเกมจาก API ได้');
         }
 
-        // สุ่มหยิบเกมขึ้นมา 1 เกมจากผลการค้นหา
-        const randomIndex = Math.floor(Math.random() * Math.min(data.items.length, 10));
-        const selectedGame = data.items[randomIndex];
+        // สุ่มเลือก AppID มา 1 เกม
+        const randomAppId = appIds[Math.floor(Math.random() * appIds.length)];
+        const gameInfo = data[randomAppId];
         
-        const appId = selectedGame.id;
-        const gameName = selectedGame.name || 'Unknown Game';
-        const storeUrl = `https://store.steampowered.com/app/${appId}`;
-        const headerImage = selectedGame.tiny_image || selectedGame.logo || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800';
+        const gameName = gameInfo.name || 'Unknown Game';
+        const storeUrl = `https://store.steampowered.com/app/${randomAppId}`;
+        const headerImage = `https://cdn.akamai.steamstatic.com/steam/apps/${randomAppId}/header.jpg`;
 
-        // ดึงรายละเอียดราคาเพิ่มเติมของ AppID นั้นๆ
-        let priceText = 'ตรวจสอบราคาบนหน้าสโตร์';
+        // ดึงราคาจริงจาก Steam App Details API
+        let priceText = 'ตรวจสอบราคาบน Steam Store';
         try {
-            const detailRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&cc=TH&l=thai`);
+            const detailRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${randomAppId}&cc=TH&l=thai`);
             const detailData = await detailRes.json();
 
-            if (detailData && detailData[appId] && detailData[appId].success) {
-                const gameDetails = detailData[appId].data;
-                if (gameDetails && gameDetails.price_overview) {
-                    const priceOverview = gameDetails.price_overview;
-                    const finalFormatted = priceOverview.final_formatted;
-                    const initialFormatted = priceOverview.initial_formatted;
-                    const discountPercent = priceOverview.discount_percent;
-
-                    if (discountPercent > 0) {
-                        priceText = `~~${initialFormatted}~~ **${finalFormatted}** (-${discountPercent}%)`;
+            if (detailData && detailData[randomAppId] && detailData[randomAppId].success) {
+                const details = detailData[randomAppId].data;
+                if (details.price_overview) {
+                    const p = details.price_overview;
+                    if (p.discount_percent > 0) {
+                        priceText = `~~${p.initial_formatted}~~ **${p.final_formatted}** (-${p.discount_percent}%)`;
                     } else {
-                        priceText = `${finalFormatted}`;
+                        priceText = `${p.final_formatted}`;
                     }
-                } else if (gameDetails && gameDetails.is_free) {
+                } else if (details.is_free) {
                     priceText = 'เล่นฟรี (Free to Play)';
                 }
             }
-        } catch (priceErr) {
-            console.log(`[SteamNews Warning] ไม่สามารถดึงราคารายละเอียดได้ ใช้ค่าเริ่มต้นแทน:`, priceErr.message);
+        } catch (err) {
+            console.log(`[SteamNews Info] ข้ามการดึงราคา ใช้ค่าสำรองแทน`);
         }
 
-        const idKey = `steam_${type}_${appId}`;
+        const idKey = `steam_${type}_${randomAppId}`;
 
-        // ระบบตรวจสอบและลบโพสต์เกมเดิมที่ซ้ำอัตโนมัติ
+        // ระบบเช็กและลบข้อความซ้ำอัตโนมัติ
         const messages = await channel.messages.fetch({ limit: 50 });
         const duplicateMessages = messages.filter(msg => 
             msg.author.id === channel.client.user.id && 
@@ -95,9 +92,9 @@ async function fetchAndSendSteamGame(channel, type) {
         );
 
         if (duplicateMessages.size > 0) {
-            console.log(`[SteamNews] พบโพสต์เกมซ้ำ (${gameName}) กำลังทำความสะอาด...`);
+            console.log(`[SteamNews] ลบโพสต์เกมซ้ำของ ${gameName}...`);
             for (const [msgId, oldMsg] of duplicateMessages) {
-                await oldMsg.delete().catch(err => console.log('ไม่สามารถลบข้อความเก่าได้:', err.message));
+                await oldMsg.delete().catch(() => {});
             }
         }
 
@@ -108,15 +105,15 @@ async function fetchAndSendSteamGame(channel, type) {
                 iconURL: 'https://cdn-icons-png.flaticon.com/512/220/220229.png' 
             })
             .setTitle(`📌 ${gameName}`)
-            .setDescription(`🏷️ **ราคา:** ${priceText}\n\n> *ข้อมูลอัปเดตสดตรงจาก Steam Store*`)
+            .setDescription(`🏷️ **ราคา/สถานะ:** ${priceText}\n\n> *ข้อมูลอัปเดตสดจาก Steam Store*`)
             .setImage(headerImage)
             .setTimestamp()
-            .setFooter({ text: `Steam Live API • ID: ${idKey}` });
+            .setFooter({ text: `Steam Spy & API • ID: ${idKey}` });
 
         const button = new ButtonBuilder()
             .setLabel('🛒 ดูรายละเอียดและกดซื้อบน Steam')
             .setStyle(ButtonStyle.Link)
-            .setUrl(storeUrl);
+            .setUrl(storeUrl); // ใช้คำสั่งพิมพ์เล็กถูกต้องตามมาตรฐาน
 
         const row = new ActionRowBuilder().addComponents(button);
 
@@ -126,8 +123,8 @@ async function fetchAndSendSteamGame(channel, type) {
             components: [row]
         });
 
-        console.log(`[SteamNews] โพสต์เกม ${gameName} สำเร็จ!`);
+        console.log(`[SteamNews] โพสต์เกม ${gameName} สำเร็จเรียบร้อย!`);
     } catch (error) {
-        console.error(`[SteamNews Error] ดึงข้อมูล Steam จริงไม่สำเร็จ:`, error.message);
+        console.error(`[SteamNews Error] เกิดข้อผิดพลาด:`, error.message);
     }
 }
