@@ -18,7 +18,7 @@ require('dotenv').config();
 
 
 // =========================================================
-// CLIENT
+// CLIENT (เพิ่ม GuildPresences สำหรับจับกิจกรรมเล่นเกม)
 // =========================================================
 const client = new Client({
     intents: [
@@ -27,7 +27,8 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.DirectMessages
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildPresences // <--- เพิ่มตัวนี้เพื่อจับสถานะเข้า/เลิกเล่นเกม
     ]
 });
 
