@@ -1,4 +1,3 @@
-// โค้ดทั้งหมดสำหรับใส่ในไฟล์ events/presenceUpdate.js
 const { Events, EmbedBuilder } = require('discord.js');
 
 module.exports = {
@@ -7,57 +6,83 @@ module.exports = {
         // 🆔 ระบุ ID ของห้อง Log ที่ต้องการให้ส่งข้อความไป
         const LOG_CHANNEL_ID = '1547938786632011786';
 
-        // ป้องกัน Error หากไม่มีข้อมูล หรือเป็น บอท
         if (!newPresence || !newPresence.member || newPresence.user.bot) return;
 
-        // ดึง Channel Log จาก Discord Server
         const logChannel = newPresence.guild.channels.cache.get(LOG_CHANNEL_ID);
         if (!logChannel) return;
 
-        // กรองเฉพาะกิจกรรมประเภทเล่นเกม (Type 0 = Playing)
+        // ดึงเฉพาะกิจกรรมประเภทเล่นเกม (Type 0 = Playing)
         const oldGame = oldPresence?.activities.find(a => a.type === 0);
         const newGame = newPresence.activities.find(a => a.type === 0);
 
+        const member = newPresence.member;
         const user = newPresence.user;
 
-        // 🟢 1. LOG: เริ่มเข้าเล่นเกม
+        // ดึงเวลาปัจจุบัน รูปแบบ HH:mm:ss
+        const timeString = new Date().toLocaleTimeString('th-TH', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+
+        // 🟢 1. กรณี: เข้าเล่นเกม
         if (!oldGame && newGame) {
             const embed = new EmbedBuilder()
-                .setColor('#2ECC71')
-                .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL() })
-                .setTitle('🎮 เริ่มเข้าเล่นเกม')
-                .setDescription(`**${user.username}** ได้เปิดเกม **${newGame.name}**`)
-                .setFooter({ text: `User ID: ${user.id}` })
-                .setTimestamp();
+                .setColor('#2ecc71')
+                .setAuthor({
+                    name: user.username,
+                    iconURL: user.displayAvatarURL()
+                })
+                .setDescription(
+                    `# 🎮 เข้าเล่นเกม\n` +
+                    `- **ชื่อเล่นในเซิร์ฟเวอร์:** ${member.displayName}\n` +
+                    `- **ชื่อหลัก (Username):** ${user.username}\n` +
+                    `- **User ID:** ${user.id}\n` +
+                    `- **เกม:** ${newGame.name}\n` +
+                    `- **เวลา:** ${timeString}`
+                );
 
             await logChannel.send({ embeds: [embed] });
         }
 
-        // 🔴 2. LOG: เลิกเล่นเกม
+        // 🔴 2. กรณี: เลิกเล่นเกม
         if (oldGame && !newGame) {
             const embed = new EmbedBuilder()
-                .setColor('#E74C3C')
-                .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL() })
-                .setTitle('⏹️ เลิกเล่นเกม')
-                .setDescription(`**${user.username}** ได้ปิดเกม **${oldGame.name}** แล้ว`)
-                .setFooter({ text: `User ID: ${user.id}` })
-                .setTimestamp();
+                .setColor('#e74c3c')
+                .setAuthor({
+                    name: user.username,
+                    iconURL: user.displayAvatarURL()
+                })
+                .setDescription(
+                    `# ⏹️ เลิกเล่นเกม\n` +
+                    `- **ชื่อเล่นในเซิร์ฟเวอร์:** ${member.displayName}\n` +
+                    `- **ชื่อหลัก (Username):** ${user.username}\n` +
+                    `- **User ID:** ${user.id}\n` +
+                    `- **เกม:** ${oldGame.name}\n` +
+                    `- **เวลา:** ${timeString}`
+                );
 
             await logChannel.send({ embeds: [embed] });
         }
 
-        // 🔵 3. LOG: สลับเปลี่ยนไปเล่นเกมอื่น
+        // 🔄 3. กรณี: เปลี่ยนเกมที่เล่น
         if (oldGame && newGame && oldGame.name !== newGame.name) {
             const embed = new EmbedBuilder()
-                .setColor('#3498DB')
-                .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL() })
-                .setTitle('🔄 เปลี่ยนเกมที่เล่น')
-                .addFields(
-                    { name: 'เกมก่อนหน้า', value: oldGame.name, inline: true },
-                    { name: 'เกมปัจจุบัน', value: newGame.name, inline: true }
-                )
-                .setFooter({ text: `User ID: ${user.id}` })
-                .setTimestamp();
+                .setColor('#3498db')
+                .setAuthor({
+                    name: user.username,
+                    iconURL: user.displayAvatarURL()
+                })
+                .setDescription(
+                    `# 🔄 เปลี่ยนเกมที่เล่น\n` +
+                    `- **ชื่อเล่นในเซิร์ฟเวอร์:** ${member.displayName}\n` +
+                    `- **ชื่อหลัก (Username):** ${user.username}\n` +
+                    `- **User ID:** ${user.id}\n` +
+                    `- **จากเกม:** ${oldGame.name}\n` +
+                    `- **ไปเกม:** ${newGame.name}\n` +
+                    `- **เวลา:** ${timeString}`
+                );
 
             await logChannel.send({ embeds: [embed] });
         }
