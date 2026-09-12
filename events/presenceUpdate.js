@@ -6,13 +6,28 @@ module.exports = {
         // 🆔 ระบุ ID ห้องสำหรับบันทึกกิจกรรม (Presence Log)
         const PRESENCE_LOG_ID = '1547938786632011786';
 
+        // 1. ตรวจสอบเบื้องต้นว่ามีข้อมูลครบถ้วน และไม่ใช่ Bot
         if (!newPresence || !newPresence.member || newPresence.user.bot) return;
 
         const guild = newPresence.guild;
         const user = newPresence.user;
         const member = newPresence.member;
 
-        // ฟังก์ชันดึงเวลาปัจจุบัน (อ้างอิงรูปแบบจากโค้ดตัวอย่างของคุณ)
+        // -------------------------------------------------------------
+        // 🛑 เงื่อนไขสำคัญ: คนไม่มียศ ห้ามติดตาม และ ห้ามส่ง Log
+        // (ใน Discord.js ยศ @everyone นับเป็น 1 ยศเสมอ ดังนั้นถ้า size <= 1 แปลว่าไม่มียศเพิ่มเลย)
+        // -------------------------------------------------------------
+        if (member.roles.cache.size <= 1) return;
+
+        // -------------------------------------------------------------
+        // 💡 หมายเหตุเพิ่มเติม: หากต้องการเจาะจงเฉพาะ "ยศที่กำหนด" เท่านั้น 
+        // ให้ยกเลิกคอมเมนต์บรรทัดด้านล่างนี้ แล้วใส่ Role ID ที่ต้องการลงไป:
+        // const ALLOWED_ROLES = ['ROLE_ID_1', 'ROLE_ID_2'];
+        // const hasAllowedRole = member.roles.cache.some(role => ALLOWED_ROLES.includes(role.id));
+        // if (!hasAllowedRole) return;
+        // -------------------------------------------------------------
+
+        // ฟังก์ชันดึงเวลาปัจจุบัน (เวลาไทย HH:mm:ss)
         const getTime = () => new Date().toLocaleString('th-TH', {
             timeZone: 'Asia/Bangkok',
             hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -52,9 +67,9 @@ module.exports = {
         const info = await getMemberInfo();
 
         try {
-            // -------------------------------------------------------------
+            // =========================================================
             // 1. ตรวจจับการเล่นเกม (Type 0 = Playing)
-            // -------------------------------------------------------------
+            // =========================================================
             const oldGame = oldPresence?.activities.find(a => a.type === 0);
             const newGame = newPresence.activities.find(a => a.type === 0);
 
@@ -99,9 +114,9 @@ module.exports = {
 \`\`\``);
             }
 
-            // -------------------------------------------------------------
+            // =========================================================
             // 2. ตรวจจับการฟังเพลง Spotify
-            // -------------------------------------------------------------
+            // =========================================================
             const oldSpotify = oldPresence?.activities.find(a => a.name === 'Spotify');
             const newSpotify = newPresence.activities.find(a => a.name === 'Spotify');
 
@@ -122,9 +137,9 @@ module.exports = {
 \`\`\``);
             }
 
-            // -------------------------------------------------------------
+            // =========================================================
             // 3. ตรวจจับการสตรีมสด (Type 1 = Streaming)
-            // -------------------------------------------------------------
+            // =========================================================
             const oldStream = oldPresence?.activities.find(a => a.type === 1);
             const newStream = newPresence.activities.find(a => a.type === 1);
 
