@@ -14,18 +14,10 @@ module.exports = {
         const member = newPresence.member;
 
         // -------------------------------------------------------------
-        // 🛑 เงื่อนไขสำคัญ: คนไม่มียศ ห้ามติดตาม และ ห้ามส่ง Log
-        // (ใน Discord.js ยศ @everyone นับเป็น 1 ยศเสมอ ดังนั้นถ้า size <= 1 แปลว่าไม่มียศเพิ่มเลย)
+        // 🛑 เงื่อนไข: คนไม่มียศ ห้ามติดตาม และ ห้ามส่ง Log
+        // (ยศ @everyone นับเป็น 1 ยศเสมอ ดังนั้นถ้า size <= 1 แปลว่าไม่มียศเพิ่มเลย)
         // -------------------------------------------------------------
         if (member.roles.cache.size <= 1) return;
-
-        // -------------------------------------------------------------
-        // 💡 หมายเหตุเพิ่มเติม: หากต้องการเจาะจงเฉพาะ "ยศที่กำหนด" เท่านั้น 
-        // ให้ยกเลิกคอมเมนต์บรรทัดด้านล่างนี้ แล้วใส่ Role ID ที่ต้องการลงไป:
-        // const ALLOWED_ROLES = ['ROLE_ID_1', 'ROLE_ID_2'];
-        // const hasAllowedRole = member.roles.cache.some(role => ALLOWED_ROLES.includes(role.id));
-        // if (!hasAllowedRole) return;
-        // -------------------------------------------------------------
 
         // ฟังก์ชันดึงเวลาปัจจุบัน (เวลาไทย HH:mm:ss)
         const getTime = () => new Date().toLocaleString('th-TH', {
@@ -73,7 +65,7 @@ module.exports = {
             const oldGame = oldPresence?.activities.find(a => a.type === 0);
             const newGame = newPresence.activities.find(a => a.type === 0);
 
-            // 🎮 เข้าเล่นเกม
+            // 🎮 เข้าเล่นเกม (แจ้งเฉพาะตอนเริ่มเล่น)
             if (!oldGame && newGame) {
                 let detailsText = '';
                 if (newGame.details) detailsText += `\n- รายละเอียด: ${newGame.details}`;
@@ -85,18 +77,6 @@ module.exports = {
 - ชื่อหลัก (Username): ${info.name}
 - User ID: ${info.id}
 - เกม: ${newGame.name}${detailsText}
-- เวลา: ${getTime()}
-\`\`\``);
-            }
-
-            // ⏹️ เลิกเล่นเกม
-            if (oldGame && !newGame) {
-                await logChannel.send(`\`\`\`md
-# ⏹️ เลิกเล่นเกม
-- ชื่อเล่นในเซิร์ฟเวอร์: ${info.displayName}
-- ชื่อหลัก (Username): ${info.name}
-- User ID: ${info.id}
-- เกม: ${oldGame.name}
 - เวลา: ${getTime()}
 \`\`\``);
             }
@@ -120,6 +100,7 @@ module.exports = {
             const oldSpotify = oldPresence?.activities.find(a => a.name === 'Spotify');
             const newSpotify = newPresence.activities.find(a => a.name === 'Spotify');
 
+            // 🎵 เริ่มฟังเพลง Spotify (แจ้งเฉพาะตอนเริ่มฟัง)
             if (!oldSpotify && newSpotify) {
                 const trackName = newSpotify.details || 'ไม่ระบุ';
                 const artistName = newSpotify.state || 'ไม่ระบุ';
@@ -143,6 +124,7 @@ module.exports = {
             const oldStream = oldPresence?.activities.find(a => a.type === 1);
             const newStream = newPresence.activities.find(a => a.type === 1);
 
+            // 🔴 เริ่มสตรีมสด (แจ้งเฉพาะตอนเริ่มสตรีม)
             if (!oldStream && newStream) {
                 await logChannel.send(`\`\`\`md
 # 🔴 เริ่มสตรีมสด
