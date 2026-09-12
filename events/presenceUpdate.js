@@ -4,7 +4,7 @@ module.exports = {
     name: Events.PresenceUpdate,
     async execute(oldPresence, newPresence) {
         // 🆔 ระบุ ID ของห้อง Log ที่ต้องการส่งข้อความไป
-        const LOG_CHANNEL_ID = 'ใส่_LOG_CHANNEL_ID_ตรงนี้';
+        const LOG_CHANNEL_ID = '1547938786632011786';
 
         if (!newPresence || !newPresence.member || newPresence.user.bot) return;
 
