@@ -4,7 +4,7 @@ module.exports = {
     name: Events.PresenceUpdate,
     async execute(oldPresence, newPresence) {
         // 🆔 ระบุ ID ห้องสำหรับบันทึกกิจกรรม (Presence Log)
-        const PRESENCE_LOG_ID = '1525003524164026468';
+        const PRESENCE_LOG_ID = '1547938786632011786';
 
         if (!newPresence || !newPresence.member || newPresence.user.bot) return;
 
