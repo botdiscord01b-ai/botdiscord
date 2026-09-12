@@ -458,7 +458,7 @@ module.exports = {
 
                             const response =
                                 await fetch(
-                                    `https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=${apiKey}&steamids=${steamId}`
+                                    `[https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=$](https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=$){apiKey}&steamids=${steamId}`
                                 );
 
 
@@ -564,7 +564,7 @@ module.exports = {
 
 
                     // =================================================
-                    // LOG 1
+                    // LOG 1 (ปรับเป็น Markdown Code Block)
                     // =================================================
                     const logChannel1 =
                         guild.channels.cache.get(
@@ -575,19 +575,20 @@ module.exports = {
                     if (logChannel1) {
 
                         const logMessage1 =
-`# 🟢 สมาชิกรับยศเกม
-
-- ชื่อดิสคอร์ด: ${member.user.username}
-- Discord User ID: ${member.id}
-- ชื่อในเซิร์ฟ: ${newNickname}
-- Steam ID64: ${steamId}
-- Steam Profile: https://steamcommunity.com/profiles/${steamId}
-- VAC: ${vacStatus}
-- VAC Ban: ${vacBansCount}
-- Game Ban: ${gameBansCount}
-- ยศที่ได้รับ: ${targetRole.name}
-- Role ID: ${roleId}
-- เวลา: ${formattedDate}`;
+'```md\n' +
+`# 🟢 สมาชิกรับยศและตรวจสอบ VAC\n` +
+`- ชื่อเล่นในเซิร์ฟเวอร์: ${newNickname}\n` +
+`- ชื่อหลัก (Username): ${member.user.username}\n` +
+`- User ID: ${member.id}\n` +
+`- Steam ID64: ${steamId}\n` +
+`- Steam Profile: https://steamcommunity.com/profiles/${steamId}\n` +
+`- สถานะ VAC: ${vacStatus}\n` +
+`- จำนวน VAC Ban: ${vacBansCount}\n` +
+`- จำนวน Game Ban: ${gameBansCount}\n` +
+`- ยศที่ได้รับ: ${targetRole.name}\n` +
+`- Role ID: ${roleId}\n` +
+`- เวลา: ${formattedDate}\n` +
+'```';
 
 
                         await logChannel1.send(
@@ -597,7 +598,7 @@ module.exports = {
 
 
                     // =================================================
-                    // LOG 2
+                    // LOG 2 (ปรับเป็น Markdown Code Block)
                     // =================================================
                     const logChannel2 =
                         guild.channels.cache.get(
@@ -608,12 +609,16 @@ module.exports = {
                     if (logChannel2) {
 
                         const logMessage2 =
-`# 📝 บันทึกข้อมูลการลงทะเบียน
-- ผู้ใช้งาน: <@${member.id}> (${member.user.tag})
-- เปลี่ยนชื่อเป็น: **${newNickname}**
-- Steam ID: \`${steamId}\`
-- ได้รับยศ: **${targetRole.name}** (ID: ${roleId})
-- เวลา: ${formattedDate}`;
+'```md\n' +
+`# 📝 บันทึกข้อมูลการลงทะเบียนรับยศ\n` +
+`- ชื่อเล่นในเซิร์ฟเวอร์: ${newNickname}\n` +
+`- ชื่อหลัก (Username): ${member.user.tag}\n` +
+`- User ID: ${member.id}\n` +
+`- Steam ID64: ${steamId}\n` +
+`- ยศที่ได้รับ: ${targetRole.name}\n` +
+`- Role ID: ${roleId}\n` +
+`- เวลา: ${formattedDate}\n` +
+'```';
 
 
                         await logChannel2.send(
