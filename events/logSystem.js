@@ -3,7 +3,7 @@ const { Events } = require('discord.js');
 module.exports = {
     name: Events.ClientReady,
     once: true,
-    execute(client) {
+    async execute(client) {
         console.log('=====================================');
         console.log('🚀 ระบบ Log (รองรับชื่อเล่นในเซิร์ฟเวอร์ & ID) พร้อมทำงาน');
         console.log('=====================================');
@@ -30,16 +30,26 @@ module.exports = {
             try {
                 const member = await guild.members.fetch(user.id).catch(() => null);
                 return {
-                    name: user.tag,
+                    name: user.tag || user.username,
                     displayName: member ? member.displayName : user.username,
                     id: user.id
                 };
             } catch {
-                return { name: user.tag, displayName: user.username, id: user.id };
+                return { name: user.tag || user.username, displayName: user.username, id: user.id };
             }
         };
 
-        // 🎧 1. ตรวจจับการเข้า-ออก/ย้ายห้องเสียง
+        // ฟังก์ชันช่วยดึงข้อความพร้อมลิงก์ไฟล์แนบ (ถ้ามี)
+        const parseContent = (msg) => {
+            let text = msg.content || '';
+            if (msg.attachments && msg.attachments.size > 0) {
+                const files = msg.attachments.map(a => a.url).join('\n');
+                text += text ? `\n\n📎 [ไฟล์แนบ]\n${files}` : `📎 [ไฟล์แนบ]\n${files}`;
+            }
+            return text || '(ไม่มีข้อความ / สติกเกอร์ / Embed)';
+        };
+
+        // 🎧 1. ตรวจจับการเข้า-ออก/ย้ายห้องเสียง / เปิดกล้อง / สตรีม
         client.on('voiceStateUpdate', async (oldState, newState) => {
             const member = newState.member || oldState.member;
             if (!member || member.user.bot) return;
@@ -50,6 +60,7 @@ module.exports = {
             try {
                 const info = await getMemberInfo(member.guild, member.user);
 
+                // เข้าห้องเสียง
                 if (!oldState.channel && newState.channel) {
                     await logChannel.send(`\`\`\`md
 # 🟢 เข้าห้องเสียง
@@ -61,6 +72,7 @@ module.exports = {
 \`\`\``);
                 }
 
+                // ออกจากห้องเสียง
                 if (oldState.channel && !newState.channel) {
                     await logChannel.send(`\`\`\`md
 # 🔴 ออกจากห้องเสียง
@@ -72,6 +84,7 @@ module.exports = {
 \`\`\``);
                 }
 
+                // ย้ายห้องเสียง
                 if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
                     await logChannel.send(`\`\`\`md
 # 🔄 เปลี่ยนห้องเสียง
@@ -80,6 +93,30 @@ module.exports = {
 - User ID: ${info.id}
 - จากห้อง: ${oldState.channel.name} (${oldState.channel.id})
 - ไปห้อง: ${newState.channel.name} (${newState.channel.id})
+- เวลา: ${getTime()}
+\`\`\``);
+                }
+
+                // เปิดกล้อง
+                if (!oldState.selfVideo && newState.selfVideo) {
+                    await logChannel.send(`\`\`\`md
+# 📷 เปิดกล้อง
+- ชื่อเล่นในเซิร์ฟเวอร์: ${info.displayName}
+- ชื่อหลัก (Username): ${info.name}
+- User ID: ${info.id}
+- ห้อง: ${newState.channel.name} (ID: ${newState.channel.id})
+- เวลา: ${getTime()}
+\`\`\``);
+                }
+
+                // แชร์หน้าจอ (Stream)
+                if (!oldState.streaming && newState.streaming) {
+                    await logChannel.send(`\`\`\`md
+# 🖥️ เริ่มสตรีมหน้าจอ
+- ชื่อเล่นในเซิร์ฟเวอร์: ${info.displayName}
+- ชื่อหลัก (Username): ${info.name}
+- User ID: ${info.id}
+- ห้อง: ${newState.channel.name} (ID: ${newState.channel.id})
 - เวลา: ${getTime()}
 \`\`\``);
                 }
@@ -95,7 +132,7 @@ module.exports = {
             if (!logChannel) return;
 
             const info = await getMemberInfo(message.guild, message.author);
-            const content = message.content || '(ไฟล์ / รูปภาพ)';
+            const content = parseContent(message);
             try {
                 await logChannel.send(`\`\`\`md
 # 📝 ข้อความใหม่
@@ -103,7 +140,7 @@ module.exports = {
 - ชื่อหลัก (Username): ${info.name}
 - User ID: ${info.id}
 - ห้อง: #${message.channel.name} (ID: ${message.channel.id})
-- เนื้อหา: ${content.slice(0, 800)}
+- เนื้อหา: ${content.slice(0, 1500)}
 - เวลา: ${getTime()}
 \`\`\``);
             } catch {}
@@ -116,7 +153,7 @@ module.exports = {
             if (!logChannel) return;
 
             const info = message.author ? await getMemberInfo(message.guild, message.author) : { displayName: 'Unknown', name: 'Unknown', id: 'N/A' };
-            const content = message.content || '(ไม่มีข้อความ / อาจเป็นรูปภาพหรือ Embed)';
+            const content = parseContent(message);
             try {
                 await logChannel.send(`\`\`\`md
 # 🗑️ ข้อความถูกลบ
@@ -124,7 +161,7 @@ module.exports = {
 - ชื่อหลัก (Username): ${info.name}
 - User ID: ${info.id}
 - ห้อง: #${message.channel.name} (ID: ${message.channel.id})
-- ข้อความที่ลบ: ${content.slice(0, 800)}
+- ข้อความที่ลบ: ${content.slice(0, 1500)}
 - เวลา: ${getTime()}
 \`\`\``);
             } catch {}
@@ -139,6 +176,8 @@ module.exports = {
             if (!logChannel) return;
 
             const info = await getMemberInfo(newMessage.guild, newMessage.author);
+            const oldContent = parseContent(oldMessage);
+            const newContent = parseContent(newMessage);
             try {
                 await logChannel.send(`\`\`\`md
 # ✏️ ข้อความถูกแก้ไข
@@ -146,8 +185,8 @@ module.exports = {
 - ชื่อหลัก (Username): ${info.name}
 - User ID: ${info.id}
 - ห้อง: #${newMessage.channel.name} (ID: ${newMessage.channel.id})
-- ข้อความเดิม: ${oldMessage.content || '(ไม่มีข้อความ)'}
-- ข้อความใหม่: ${newMessage.content || '(ไม่มีข้อความ)'}
+- ข้อความเดิม: ${oldContent.slice(0, 700)}
+- ข้อความใหม่: ${newContent.slice(0, 700)}
 - เวลา: ${getTime()}
 \`\`\``);
             } catch {}
