@@ -1,45 +1,5 @@
 const { Events } = require('discord.js');
 
-const LOG_CHANNEL_ID = '1494379391327928370';       // ห้องสำหรับข้อความแชท/แก้ไข/ลบ
-const VOICE_LOG_ID = '1525003524164026468';         // ห้องสำหรับเข้า-ออกห้องเสียง
-
-const getTime = () => new Date().toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-});
-
-const getChannel = async (client, id, type) => {
-    try {
-        return client.channels.cache.get(id) || await client.channels.fetch(id);
-    } catch (err) {
-        console.error(`❌ ไม่พบห้อง ${type}:`, err.message);
-        return null;
-    }
-};
-
-const getMemberInfo = async (guild, user) => {
-    if (!guild || !user) return { name: user?.tag || 'Unknown', displayName: user?.username || 'Unknown', id: user?.id || 'N/A' };
-    try {
-        const member = await guild.members.fetch(user.id).catch(() => null);
-        return {
-            name: user.tag || user.username,
-            displayName: member ? member.displayName : user.username,
-            id: user.id
-        };
-    } catch {
-        return { name: user.tag || user.username, displayName: user.username, id: user.id };
-    }
-};
-
-const parseContent = (msg) => {
-    let text = msg.content || '';
-    if (msg.attachments && msg.attachments.size > 0) {
-        const files = msg.attachments.map(a => a.url).join('\n');
-        text += text ? `\n\n📎 [ไฟล์แนบ]\n${files}` : `📎 [ไฟล์แนบ]\n${files}`;
-    }
-    return text || '(ไม่มีข้อความ / สติกเกอร์ / Embed)';
-};
-
 module.exports = {
     name: Events.ClientReady,
     once: true,
@@ -48,12 +8,52 @@ module.exports = {
         console.log('🚀 ระบบ Log (รองรับชื่อเล่นในเซิร์ฟเวอร์ & ID) พร้อมทำงาน');
         console.log('=====================================');
 
+        const LOG_CHANNEL_ID = '1494379391327928370';       // ห้องสำหรับข้อความแชท/แก้ไข/ลบ
+        const VOICE_LOG_ID = '1525003524164026468';         // ห้องสำหรับเข้า-ออกห้องเสียง
+
+        const getTime = () => new Date().toLocaleString('th-TH', {
+            timeZone: 'Asia/Bangkok',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+
+        const getChannel = async (id, type) => {
+            try {
+                return client.channels.cache.get(id) || await client.channels.fetch(id);
+            } catch (err) {
+                console.error(`❌ ไม่พบห้อง ${type}:`, err.message);
+                return null;
+            }
+        };
+
+        const getMemberInfo = async (guild, user) => {
+            if (!guild || !user) return { name: user?.tag || 'Unknown', displayName: user?.username || 'Unknown', id: user?.id || 'N/A' };
+            try {
+                const member = await guild.members.fetch(user.id).catch(() => null);
+                return {
+                    name: user.tag || user.username,
+                    displayName: member ? member.displayName : user.username,
+                    id: user.id
+                };
+            } catch {
+                return { name: user.tag || user.username, displayName: user.username, id: user.id };
+            }
+        };
+
+        const parseContent = (msg) => {
+            let text = msg.content || '';
+            if (msg.attachments && msg.attachments.size > 0) {
+                const files = msg.attachments.map(a => a.url).join('\n');
+                text += text ? `\n\n📎 [ไฟล์แนบ]\n${files}` : `📎 [ไฟล์แนบ]\n${files}`;
+            }
+            return text || '(ไม่มีข้อความ / สติกเกอร์ / Embed)';
+        };
+
         // 🎧 1. ตรวจจับห้องเสียง / เปิดกล้อง / แชร์จอ
         client.on('voiceStateUpdate', async (oldState, newState) => {
             const member = newState.member || oldState.member;
             if (!member || member.user.bot) return;
 
-            const logChannel = await getChannel(client, VOICE_LOG_ID, 'บันทึกเสียง');
+            const logChannel = await getChannel(VOICE_LOG_ID, 'บันทึกเสียง');
             if (!logChannel) return;
 
             try {
@@ -139,7 +139,7 @@ module.exports = {
         // 📝 2. บันทึกข้อความแชทใหม่
         client.on('messageCreate', async (message) => {
             if (!message.guild || message.author.bot) return;
-            const logChannel = await getChannel(client, LOG_CHANNEL_ID, 'บันทึกข้อความ');
+            const logChannel = await getChannel(LOG_CHANNEL_ID, 'บันทึกข้อความ');
             if (!logChannel) return;
 
             const info = await getMemberInfo(message.guild, message.author);
@@ -160,7 +160,7 @@ module.exports = {
         // 🗑️ 3. บันทึกข้อความที่ถูกลบ
         client.on('messageDelete', async (message) => {
             if (!message.guild || message.author?.bot) return;
-            const logChannel = await getChannel(client, LOG_CHANNEL_ID, 'บันทึกข้อความลบ');
+            const logChannel = await getChannel(LOG_CHANNEL_ID, 'บันทึกข้อความลบ');
             if (!logChannel) return;
 
             const info = message.author ? await getMemberInfo(message.guild, message.author) : { displayName: 'Unknown', name: 'Unknown', id: 'N/A' };
@@ -183,7 +183,7 @@ module.exports = {
             if (!newMessage.guild || newMessage.author?.bot) return;
             if (oldMessage.content === newMessage.content) return;
 
-            const logChannel = await getChannel(client, LOG_CHANNEL_ID, 'บันทึกข้อความแก้ไข');
+            const logChannel = await getChannel(LOG_CHANNEL_ID, 'บันทึกข้อความแก้ไข');
             if (!logChannel) return;
 
             const info = await getMemberInfo(newMessage.guild, newMessage.author);
