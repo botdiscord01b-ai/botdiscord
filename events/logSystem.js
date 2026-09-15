@@ -1,11 +1,11 @@
-const { Events } = require('discord.js');
+const { Events, AuditLogEvent } = require('discord.js');
 
 module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
         console.log('=====================================');
-        console.log('🚀 รวมระบบ Log แบบสมบูรณ์ (23 กิจกรรม) พร้อมทำงาน');
+        console.log('🚀 ระบบ Log + Audit Log (ดึงผู้กระทำ Admin) พร้อมทำงาน');
         console.log('=====================================');
 
         // 🆔 ตั้งค่า ID ห้อง Log ทั้งหมด
@@ -13,7 +13,8 @@ module.exports = {
         const VOICE_LOG_ID = '1525003524164026468';         // Log เสียง (เข้า/ออก/ย้าย/แชร์จอ/เปิดกล้อง)
         const PRESENCE_LOG_ID = '1547938786632011786';      // Log กิจกรรม (เกม/Spotify/สตรีมสด)
         const MEDIA_LOG_ID = '1549316883356848249';         // Log สำรองรูปภาพและไฟล์แนบ
-        const SERVER_LOG_ID = '1549433574829326366';        // 🛡️ Log เซิร์ฟเวอร์ (เข้า-ออก/ยศ/เปลี่ยนชื่อ/สร้าง-ลบห้อง/แบน)
+        const SERVER_LOG_ID = '1549433574829326366';        // 🛡️ Log เซิร์ฟเวอร์ & Audit Log (การกระทำ Admin)
+        const INOUT_LOG_ID = '1549433868300328970';         // 🚪 Log คนเข้า-ออกจากเซิร์ฟเวอร์
 
         // ----------------------------------------------------
         // 🛠️ Helper Functions
@@ -56,7 +57,94 @@ module.exports = {
         };
 
         // ----------------------------------------------------
-        // 🎧 1. ระบบห้องเสียง / เปิดกล้อง / แชร์หน้าจอ
+        // 🕵️‍♂️ Audit Log Event Handler (ตรวจจับการกระทำของ Admin)
+        // ----------------------------------------------------
+        client.on('guildAuditLogEntryCreate', async (auditLog, guild) => {
+            const logChannel = await getChannel(SERVER_LOG_ID, 'Audit Log');
+            if (!logChannel) return;
+
+            const { action, executor, target, reason, changes } = auditLog;
+            const executorTag = executor ? `${executor.tag} (ID: ${executor.id})` : 'ไม่ทราบผู้ทำ';
+
+            try {
+                // 1. เตะสมาชิก (Kick)
+                if (action === AuditLogEvent.MemberKick) {
+                    await logChannel.send(`\`\`\`md\n# 👢 สมาชิกถูกเตะออกจากเซิร์ฟเวอร์\n- ผู้ถูกเตะ: ${target?.tag || 'ไม่ทราบ'} (ID: ${target?.id})\n- ดำเนินการโดย: ${executorTag}\n- เหตุผล: ${reason || 'ไม่ได้ระบุ'}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+
+                // 2. แบนสมาชิก (Ban)
+                if (action === AuditLogEvent.MemberBanAdd) {
+                    await logChannel.send(`\`\`\`md\n# 🔨 สมาชิกถูกแบน\n- ผู้ถูกแบน: ${target?.tag || 'ไม่ทราบ'} (ID: ${target?.id})\n- ดำเนินการโดย: ${executorTag}\n- เหตุผล: ${reason || 'ไม่ได้ระบุ'}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+
+                // 3. ปลดแบน (Unban)
+                if (action === AuditLogEvent.MemberBanRemove) {
+                    await logChannel.send(`\`\`\`md\n# 🔓 สมาชิกถูกปลดแบน\n- ผู้ถูกปลดแบน: ${target?.tag || 'ไม่ทราบ'} (ID: ${target?.id})\n- ดำเนินการโดย: ${executorTag}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+
+                // 4. สั่ง Timeout (ปิดปาก)
+                if (action === AuditLogEvent.MemberUpdate) {
+                    const timeoutChange = changes.find(c => c.key === 'communication_disabled_until');
+                    if (timeoutChange) {
+                        if (timeoutChange.new) {
+                            await logChannel.send(`\`\`\`md\n# 🔇 สมาชิกถูก Timeout (ปิดปาก)\n- ผู้ถูก Timeout: ${target?.tag || 'ไม่ทราบ'} (ID: ${target?.id})\n- ดำเนินการโดย: ${executorTag}\n- จนถึงเวลา: ${new Date(timeoutChange.new).toLocaleString('th-TH')}\n- เหตุผล: ${reason || 'ไม่ได้ระบุ'}\n- เวลา: ${getTime()}\n\`\`\``);
+                        } else {
+                            await logChannel.send(`\`\`\`md\n# 🔊 สมาชิกถูกยกเลิก Timeout\n- ผู้เล่น: ${target?.tag || 'ไม่ทราบ'} (ID: ${target?.id})\n- ดำเนินการโดย: ${executorTag}\n- เวลา: ${getTime()}\n\`\`\``);
+                        }
+                    }
+                }
+
+                // 5. สร้าง / ลบ / แก้ไข ห้อง
+                if (action === AuditLogEvent.ChannelCreate) {
+                    await logChannel.send(`\`\`\`md\n# 📁 สร้างห้องใหม่\n- ชื่อห้อง: #${target?.name}\n- ดำเนินการโดย: ${executorTag}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+                if (action === AuditLogEvent.ChannelDelete) {
+                    await logChannel.send(`\`\`\`md\n# 🗑️ ห้องถูกลบ\n- ชื่อห้อง: #${target?.name}\n- ดำเนินการโดย: ${executorTag}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+
+                // 6. สร้าง / ลบ ยศ
+                if (action === AuditLogEvent.RoleCreate) {
+                    await logChannel.send(`\`\`\`md\n# 🏷️ สร้างยศใหม่\n- ชื่อยศ: ${target?.name}\n- ดำเนินการโดย: ${executorTag}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+                if (action === AuditLogEvent.RoleDelete) {
+                    await logChannel.send(`\`\`\`md\n# 🗑️ ยศถูกลบ\n- ชื่อยศ: ${target?.name}\n- ดำเนินการโดย: ${executorTag}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+
+                // 7. เตะออกจากห้องเสียง / ย้ายห้องเสียง
+                if (action === AuditLogEvent.MemberDisconnect) {
+                    await logChannel.send(`\`\`\`md\n# 🔇 สมาชิกถูกเตะออกจากห้องเสียง\n- ผู้ถูกเตะ: ${target?.tag || 'ไม่ทราบ'}\n- ดำเนินการโดย: ${executorTag}\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+                if (action === AuditLogEvent.MemberMove) {
+                    await logChannel.send(`\`\`\`md\n# 🔄 สมาชิกถูกย้ายห้องเสียง\n- ดำเนินการโดย: ${executorTag}\n- จำนวนคนที่ถูกย้าย: ${auditLog.extra?.count || 1} คน\n- เวลา: ${getTime()}\n\`\`\``);
+                }
+            } catch (err) {
+                console.error('❌ ส่ง Audit Log ไม่สำเร็จ:', err.message);
+            }
+        });
+
+        // ----------------------------------------------------
+        // 🚪 1. คนเข้า-ออกจากเซิร์ฟเวอร์ (IN/OUT LOG)
+        // ----------------------------------------------------
+        client.on('guildMemberAdd', async (member) => {
+            const logChannel = await getChannel(INOUT_LOG_ID, 'บันทึกคนเข้า-ออก');
+            if (!logChannel) return;
+            const accountCreated = Math.floor(member.user.createdTimestamp / 1000);
+            try {
+                await logChannel.send(`\`\`\`md\n# 📥 สมาชิกใหม่เข้าร่วม\n- ชื่อเล่น: ${member.displayName}\n- ชื่อหลัก: ${member.user.tag}\n- User ID: ${member.id}\n- สร้างบัญชีเมื่อ: <t:${accountCreated}:R>\n- เวลา: ${getTime()}\n\`\`\``);
+            } catch {}
+        });
+
+        client.on('guildMemberRemove', async (member) => {
+            const logChannel = await getChannel(INOUT_LOG_ID, 'บันทึกคนเข้า-ออก');
+            if (!logChannel) return;
+            const roles = member.roles.cache.filter(r => r.id !== member.guild.id).map(r => r.name).join(', ') || 'ไม่มี';
+            try {
+                await logChannel.send(`\`\`\`md\n# 📤 สมาชิกออกจากเซิร์ฟเวอร์\n- ชื่อเล่น: ${member.displayName}\n- ชื่อหลัก: ${member.user.tag}\n- User ID: ${member.id}\n- ยศที่มีก่อนออก: ${roles}\n- เวลา: ${getTime()}\n\`\`\``);
+            } catch {}
+        });
+
+        // ----------------------------------------------------
+        // 🎧 2. ระบบห้องเสียง / เปิดกล้อง / แชร์หน้าจอ
         // ----------------------------------------------------
         client.on('voiceStateUpdate', async (oldState, newState) => {
             const member = newState.member || oldState.member;
@@ -86,13 +174,11 @@ module.exports = {
                 if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
                     await logChannel.send(`\`\`\`md\n# 🔄 เปลี่ยนห้องเสียง\n- ชื่อเล่น: ${info.displayName}\n- ชื่อหลัก: ${info.name}\n- User ID: ${info.id}\n- จากห้อง: ${oldState.channel.name}\n- ไปห้อง: ${newState.channel.name}\n- เวลา: ${getTime()}\n\`\`\``);
                 }
-            } catch (err) {
-                console.error('❌ ส่ง log ห้องเสียงไม่ได้:', err.message);
-            }
+            } catch {}
         });
 
         // ----------------------------------------------------
-        // 📝 2. บันทึกข้อความ & 🖼️ สำรองรูปภาพ
+        // 📝 3. บันทึกข้อความ & 🖼️ สำรองรูปภาพ
         // ----------------------------------------------------
         client.on('messageCreate', async (message) => {
             if (!message.guild || message.author.bot) return;
@@ -128,7 +214,7 @@ module.exports = {
             const info = message.author ? await getMemberInfo(message.guild, message.author) : { displayName: 'Unknown', name: 'Unknown', id: 'N/A' };
             const content = parseContent(message);
             try {
-                await logChannel.send(`\`\`\`md\n# 🗑️ ข้อความถูกลบ\n- ชื่อเล่น: ${info.displayName}\n- ชื่อหลัก: ${info.name}\n- User ID: ${info.id}\n- ห้อง: #${message.channel.name}\n- ข้อความที่ลบ: ${content.slice(0, 1500)}\n- เวลา: ${getTime()}\n\`\`\``);
+                await logChannel.send(`\`\`\`md\n# 🗑️ ข้อความถูกลบ\n- เจ้าของข้อความ: ${info.displayName} (${info.name})\n- User ID: ${info.id}\n- ห้อง: #${message.channel.name}\n- ข้อความที่ลบ: ${content.slice(0, 1500)}\n- เวลา: ${getTime()}\n\`\`\``);
             } catch {}
         });
 
@@ -148,7 +234,7 @@ module.exports = {
         });
 
         // ----------------------------------------------------
-        // 🎮 3. ระบบกิจกรรมผู้ใช้
+        // 🎮 4. ระบบกิจกรรมผู้ใช้
         // ----------------------------------------------------
         client.on('presenceUpdate', async (oldPresence, newPresence) => {
             if (!newPresence || !newPresence.member || newPresence.user.bot) return;
@@ -188,30 +274,8 @@ module.exports = {
         });
 
         // ----------------------------------------------------
-        // 🛡️ 4. ระบบการจัดการเซิร์ฟเวอร์ & สมาชิก
+        // 🛡️ 5. การปรับเปลี่ยนชื่อเล่น & ยศสมาชิก
         // ----------------------------------------------------
-        
-        // 📥 สมาชิกเข้าร่วมเซิร์ฟเวอร์
-        client.on('guildMemberAdd', async (member) => {
-            const logChannel = await getChannel(SERVER_LOG_ID, 'บันทึกเซิร์ฟเวอร์');
-            if (!logChannel) return;
-            const accountCreated = Math.floor(member.user.createdTimestamp / 1000);
-            try {
-                await logChannel.send(`\`\`\`md\n# 📥 สมาชิกใหม่เข้าร่วม\n- ชื่อเล่น: ${member.displayName}\n- ชื่อหลัก: ${member.user.tag}\n- User ID: ${member.id}\n- สร้างบัญชีเมื่อ: <t:${accountCreated}:R>\n- เวลา: ${getTime()}\n\`\`\``);
-            } catch {}
-        });
-
-        // 📤 สมาชิกออกจากเซิร์ฟเวอร์
-        client.on('guildMemberRemove', async (member) => {
-            const logChannel = await getChannel(SERVER_LOG_ID, 'บันทึกเซิร์ฟเวอร์');
-            if (!logChannel) return;
-            const roles = member.roles.cache.filter(r => r.id !== member.guild.id).map(r => r.name).join(', ') || 'ไม่มี';
-            try {
-                await logChannel.send(`\`\`\`md\n# 📤 สมาชิกออกจากเซิร์ฟเวอร์\n- ชื่อเล่น: ${member.displayName}\n- ชื่อหลัก: ${member.user.tag}\n- User ID: ${member.id}\n- ยศที่มีก่อนออก: ${roles}\n- เวลา: ${getTime()}\n\`\`\``);
-            } catch {}
-        });
-
-        // ✏️ เปลี่ยนชื่อเล่น & 🛡️ ปรับเปลี่ยนยศ
         client.on('guildMemberUpdate', async (oldMember, newMember) => {
             const logChannel = await getChannel(SERVER_LOG_ID, 'บันทึกเซิร์ฟเวอร์');
             if (!logChannel) return;
@@ -239,42 +303,6 @@ module.exports = {
                     await logChannel.send(`\`\`\`md\n# 🔴 ถูกถอดจากยศ\n- ผู้ใช้: ${newMember.displayName} (${newMember.user.tag})\n- User ID: ${newMember.id}\n- ยศที่ถูกถอด: ${roleNames}\n- เวลา: ${getTime()}\n\`\`\``);
                 } catch {}
             }
-        });
-
-        // 📁 สร้าง / ลบ ห้อง
-        client.on('channelCreate', async (channel) => {
-            if (!channel.guild) return;
-            const logChannel = await getChannel(SERVER_LOG_ID, 'บันทึกเซิร์ฟเวอร์');
-            if (!logChannel) return;
-            try {
-                await logChannel.send(`\`\`\`md\n# 📁 สร้างห้องใหม่\n- ชื่อห้อง: #${channel.name}\n- Channel ID: ${channel.id}\n- ประเภท: ${channel.type}\n- เวลา: ${getTime()}\n\`\`\``);
-            } catch {}
-        });
-
-        client.on('channelDelete', async (channel) => {
-            if (!channel.guild) return;
-            const logChannel = await getChannel(SERVER_LOG_ID, 'บันทึกเซิร์ฟเวอร์');
-            if (!logChannel) return;
-            try {
-                await logChannel.send(`\`\`\`md\n# 🗑️ ห้องถูกลบ\n- ชื่อห้องที่ลบ: #${channel.name}\n- Channel ID: ${channel.id}\n- เวลา: ${getTime()}\n\`\`\``);
-            } catch {}
-        });
-
-        // 🚫 แบน / ปลดแบน สมาชิก
-        client.on('guildBanAdd', async (ban) => {
-            const logChannel = await getChannel(SERVER_LOG_ID, 'บันทึกเซิร์ฟเวอร์');
-            if (!logChannel) return;
-            try {
-                await logChannel.send(`\`\`\`md\n# 🔨 ถูกแบนจากเซิร์ฟเวอร์\n- ผู้ใช้: ${ban.user.tag}\n- User ID: ${ban.user.id}\n- เหตุผล: ${ban.reason || 'ไม่ได้ระบุ'}\n- เวลา: ${getTime()}\n\`\`\``);
-            } catch {}
-        });
-
-        client.on('guildBanRemove', async (ban) => {
-            const logChannel = await getChannel(SERVER_LOG_ID, 'บันทึกเซิร์ฟเวอร์');
-            if (!logChannel) return;
-            try {
-                await logChannel.send(`\`\`\`md\n# 🔓 ถูกปลดแบน\n- ผู้ใช้: ${ban.user.tag}\n- User ID: ${ban.user.id}\n- เวลา: ${getTime()}\n\`\`\``);
-            } catch {}
         });
     }
 };
