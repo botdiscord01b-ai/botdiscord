@@ -101,17 +101,16 @@ module.exports = {
         client.on('messageCreate', async (message) => {
             if (!message.guild || message.author.bot) return;
 
-            // 🖼️ 2.1 ส่วนคัดลอกรูปภาพ/ไฟล์แนบไปเก็บในห้อง Media Log
+            // 🖼️ 2.1 ส่วนคัดลอกรูปภาพ/ไฟล์แนบไปเก็บในห้อง Media Log (แก้ไขส่งรูปเดียว ไม่ซ้ำ)
             if (message.attachments.size > 0) {
                 const mediaChannel = await getChannel(MEDIA_LOG_ID, 'สำรองรูปภาพ');
                 if (mediaChannel) {
                     const info = await getMemberInfo(message.guild, message.author);
-                    const fileUrls = message.attachments.map(a => a.url);
+                    const fileUrls = message.attachments.map(a => a.url).join('\n');
 
                     try {
                         await mediaChannel.send({
-                            content: `\`\`\`md\n# 🖼️ สำรองรูปภาพ/ไฟล์แนบ\n- ส่งโดย: ${info.displayName} (${info.name})\n- User ID: ${info.id}\n- จากห้อง: #${message.channel.name}\n- แคปชัน: ${message.content || 'ไม่มีข้อความ'}\n- เวลา: ${getTime()}\n\`\`\`\n${fileUrls.join('\n')}`,
-                            files: Array.from(message.attachments.values()).map(a => a.url) // ส่งไฟล์ซ้ำเข้าห้อง Log เพื่อให้ Discord เก็บไฟล์ไว้อย่างถาวร
+                            content: `\`\`\`md\n# 🖼️ สำรองรูปภาพ/ไฟล์แนบ\n- ส่งโดย: ${info.displayName} (${info.name})\n- User ID: ${info.id}\n- จากห้อง: #${message.channel.name}\n- แคปชัน: ${message.content || 'ไม่มีข้อความ'}\n- เวลา: ${getTime()}\n\`\`\`\n${fileUrls}`
                         });
                     } catch (err) {
                         console.error('❌ คัดลอกรูปภาพไปห้อง Media Log ไม่สำเร็จ:', err.message);
