@@ -5,12 +5,17 @@ module.exports = {
     once: true,
     async execute(client) {
         console.log('=====================================');
-        console.log('🚀 ระบบ Log (รองรับชื่อเล่นในเซิร์ฟเวอร์ & ID) พร้อมทำงาน');
+        console.log('🚀 รวมระบบ Log (ข้อความ/ห้องเสียง/กิจกรรม) พร้อมทำงาน');
         console.log('=====================================');
 
-        const LOG_CHANNEL_ID = '1494379391327928370';       // ห้องสำหรับข้อความแชท/แก้ไข/ลบ
-        const VOICE_LOG_ID = '1525003524164026468';         // ห้องสำหรับเข้า-ออกห้องเสียง
+        // 🆔 ตั้งค่า ID ห้อง Log ทั้งหมดตรงนี้
+        const LOG_CHANNEL_ID = '1494379391327928370';       // ห้อง Log ข้อความ (พิมพ์/แก้ไข/ลบ)
+        const VOICE_LOG_ID = '1525003524164026468';         // ห้อง Log เสียง (เข้า/ออก/ย้าย/แชร์จอ/เปิดกล้อง)
+        const PRESENCE_LOG_ID = '1547938786632011786';      // ห้อง Log กิจกรรม (เกม/Spotify/สตรีมสด)
 
+        // ----------------------------------------------------
+        // 🛠️ Helper Functions
+        // ----------------------------------------------------
         const getTime = () => new Date().toLocaleString('th-TH', {
             timeZone: 'Asia/Bangkok',
             hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -48,7 +53,9 @@ module.exports = {
             return text || '(ไม่มีข้อความ / สติกเกอร์ / Embed)';
         };
 
-        // 🎧 1. ตรวจจับห้องเสียง / เปิดกล้อง / แชร์จอ
+        // ----------------------------------------------------
+        // 🎧 1. ระบบห้องเสียง / เปิดกล้อง / แชร์หน้าจอ
+        // ----------------------------------------------------
         client.on('voiceStateUpdate', async (oldState, newState) => {
             const member = newState.member || oldState.member;
             if (!member || member.user.bot) return;
@@ -59,7 +66,7 @@ module.exports = {
             try {
                 const info = await getMemberInfo(member.guild, member.user);
 
-                // 🖥️ เริ่มสตรีมหน้าจอ (แชร์จอ)
+                // 🖥️ เริ่มสตรีมหน้าจอ
                 if (!oldState.streaming && newState.streaming) {
                     await logChannel.send(`\`\`\`md
 # 🖥️ เริ่มสตรีมหน้าจอ
@@ -136,7 +143,9 @@ module.exports = {
             }
         });
 
-        // 📝 2. บันทึกข้อความแชทใหม่
+        // ----------------------------------------------------
+        // 📝 2. ระบบบันทึกข้อความ (พิมพ์/ลบ/แก้ไข)
+        // ----------------------------------------------------
         client.on('messageCreate', async (message) => {
             if (!message.guild || message.author.bot) return;
             const logChannel = await getChannel(LOG_CHANNEL_ID, 'บันทึกข้อความ');
@@ -157,7 +166,6 @@ module.exports = {
             } catch {}
         });
 
-        // 🗑️ 3. บันทึกข้อความที่ถูกลบ
         client.on('messageDelete', async (message) => {
             if (!message.guild || message.author?.bot) return;
             const logChannel = await getChannel(LOG_CHANNEL_ID, 'บันทึกข้อความลบ');
@@ -178,7 +186,6 @@ module.exports = {
             } catch {}
         });
 
-        // ✏️ 4. บันทึกข้อความที่ถูกแก้ไข
         client.on('messageUpdate', async (oldMessage, newMessage) => {
             if (!newMessage.guild || newMessage.author?.bot) return;
             if (oldMessage.content === newMessage.content) return;
@@ -203,6 +210,88 @@ module.exports = {
             } catch {}
         });
 
-        console.log('✅ ระบบ Log ทั้งหมดทำงานสมบูรณ์แล้ว');
+        // ----------------------------------------------------
+        // 🎮 3. ระบบกิจกรรมผู้ใช้ (เกม / Spotify / สตรีมสด)
+        // ----------------------------------------------------
+        client.on('presenceUpdate', async (oldPresence, newPresence) => {
+            if (!newPresence || !newPresence.member || newPresence.user.bot) return;
+
+            const member = newPresence.member;
+            // เงื่อนไข: คนไม่มียศ ห้ามส่ง Log
+            if (member.roles.cache.size <= 1) return;
+
+            const logChannel = await getChannel(PRESENCE_LOG_ID, 'บันทึกกิจกรรม');
+            if (!logChannel) return;
+
+            try {
+                const info = await getMemberInfo(newPresence.guild, newPresence.user);
+
+                // 🎮 1. ตรวจจับการเล่นเกม
+                const oldGame = oldPresence?.activities.find(a => a.type === 0);
+                const newGame = newPresence.activities.find(a => a.type === 0);
+
+                if (!oldGame && newGame) {
+                    let detailsText = '';
+                    if (newGame.details) detailsText += `\n- รายละเอียด: ${newGame.details}`;
+                    if (newGame.state) detailsText += `\n- สถานะ: ${newGame.state}`;
+
+                    await logChannel.send(`\`\`\`md
+# 🎮 เข้าเล่นเกม
+- ชื่อเล่นในเซิร์ฟเวอร์: ${info.displayName}
+- ชื่อหลัก (Username): ${info.name}
+- User ID: ${info.id}
+- เกม: ${newGame.name}${detailsText}
+- เวลา: ${getTime()}
+\`\`\``);
+                }
+
+                if (oldGame && newGame && oldGame.name !== newGame.name) {
+                    await logChannel.send(`\`\`\`md
+# 🔄 เปลี่ยนเกมที่เล่น
+- ชื่อเล่นในเซิร์ฟเวอร์: ${info.displayName}
+- ชื่อหลัก (Username): ${info.name}
+- User ID: ${info.id}
+- จากเกม: ${oldGame.name}
+- ไปเกม: ${newGame.name}
+- เวลา: ${getTime()}
+\`\`\``);
+                }
+
+                // 🎵 2. ตรวจจับ Spotify
+                const oldSpotify = oldPresence?.activities.find(a => a.name === 'Spotify');
+                const newSpotify = newPresence.activities.find(a => a.name === 'Spotify');
+
+                if (!oldSpotify && newSpotify) {
+                    await logChannel.send(`\`\`\`md
+# 🎵 เริ่มฟังเพลง Spotify
+- ชื่อเล่นในเซิร์ฟเวอร์: ${info.displayName}
+- ชื่อหลัก (Username): ${info.name}
+- User ID: ${info.id}
+- เพลง: ${newSpotify.details || 'ไม่ระบุ'}
+- ศิลปิน: ${newSpotify.state || 'ไม่ระบุ'}
+- อัลบั้ม: ${newSpotify.assets?.largeText || 'ไม่ระบุ'}
+- เวลา: ${getTime()}
+\`\`\``);
+                }
+
+                // 🔴 3. ตรวจจับการสตรีมสด
+                const oldStream = oldPresence?.activities.find(a => a.type === 1);
+                const newStream = newPresence.activities.find(a => a.type === 1);
+
+                if (!oldStream && newStream) {
+                    await logChannel.send(`\`\`\`md
+# 🔴 เริ่มสตรีมสด
+- ชื่อเล่นในเซิร์ฟเวอร์: ${info.displayName}
+- ชื่อหลัก (Username): ${info.name}
+- User ID: ${info.id}
+- หัวข้อ: ${newStream.details || newStream.name}
+- ลิงก์สตรีม: ${newStream.url || 'ไม่มีลิงก์'}
+- เวลา: ${getTime()}
+\`\`\``);
+                }
+            } catch (err) {
+                console.error('❌ ส่ง log กิจกรรมไม่ได้:', err.message);
+            }
+        });
     }
 };
