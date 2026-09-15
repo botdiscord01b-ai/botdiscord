@@ -1,9 +1,10 @@
 const Parser = require('rss-parser');
-
 const parser = new Parser();
-const TARGET_CHANNEL_ID = '1546974845244416070';
 
-// รายชื่อช่อง YouTube ทั้ง 5 ช่องพร้อม RSS Feed และลิงก์สำรอง
+const TARGET_CHANNEL_ID = '1546974845244416070';
+const CHECK_INTERVAL = 15 * 60 * 1000; // ตรวจสอบอัตโนมัติทุกๆ 15 นาที
+
+// รายชื่อช่อง YouTube
 const YOUTUBE_CHANNELS = {
     pubg: {
         name: 'PUBG: BATTLEGROUNDS (TH)',
@@ -33,93 +34,93 @@ const YOUTUBE_CHANNELS = {
 };
 
 module.exports = {
-    name: 'messageCreate',
-    async execute(message) {
-        if (message.author.bot) return;
+    name: 'ready', // ทำงานอัตโนมัติทันทีที่บอทเริ่มทำงาน
+    once: false,
+    async execute(client) {
+        console.log('🌐 ระบบติดตามข่าวสาร YouTube พร้อมทำงานแล้ว');
 
-        // คำสั่งเรียกใช้งาน: !youtube หรือ !yt (ตามด้วยชื่อเกม เช่น !youtube pubg หรือพิมพ์ !youtube เพื่อดึงทั้งหมด)
-        if (message.content.startsWith('!youtube') || message.content.startsWith('!yt')) {
-            console.log(`[YouTubeNews] กำลังดึงคลิปล่าสุดจาก YouTube โดย: ${message.author.tag}`);
-            
-            const args = message.content.split(' ');
-            const targetGame = args[1] ? args[1].toLowerCase() : 'all';
+        // ตรวจสอบคลิปให้อัตโนมัติทุกๆ 15 นาที
+        setInterval(async () => {
+            const targetChannel = client.channels.cache.get(TARGET_CHANNEL_ID);
+            if (!targetChannel) return;
 
-            const targetChannel = message.client.channels.cache.get(TARGET_CHANNEL_ID);
-            
-            if (!targetChannel) {
-                console.log(`[YouTubeNews Error] ไม่พบห้องเป้าหมาย ID: ${TARGET_CHANNEL_ID}`);
-                return message.reply(`❌ ไม่พบห้องเป้าหมาย (Channel ID: ${TARGET_CHANNEL_ID})`);
+            console.log('[YouTubeAuto] กำลังตรวจสอบคลิปใหม่จากทุกช่อง...');
+            for (const key in YOUTUBE_CHANNELS) {
+                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS[key], false);
             }
+        }, CHECK_INTERVAL);
 
-            if (targetGame === 'pubg' || targetGame === 'all') {
-                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.pubg);
-            }
-            if (targetGame === 'abi' || targetGame === 'all') {
-                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.abi);
-            }
-            if (targetGame === 'scum' || targetGame === 'all') {
-                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.scum);
-            }
-            if (targetGame === 'valorant' || targetGame === 'val' || targetGame === 'all') {
-                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.valorant);
-            }
-            if (targetGame === 'cs2' || targetGame === 'counter' || targetGame === 'all') {
-                await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.cs2);
-            }
+        // ฟังคำสั่งพิมพ์ !youtube หรือ !yt
+        client.on('messageCreate', async (message) => {
+            if (message.author.bot) return;
 
-            if (message.channel.id !== TARGET_CHANNEL_ID) {
-                await message.reply(`✅ ดึงคลิปล่าสุดจากทุกช่อง YouTube และทำความสะอาดโพสต์ซ้ำเรียบร้อยแล้ว!`);
+            if (message.content.startsWith('!youtube') || message.content.startsWith('!yt')) {
+                console.log(`[YouTubeNews] คำสั่งถูกเรียกใช้โดย: ${message.author.tag}`);
+                
+                const args = message.content.split(' ');
+                const targetGame = args[1] ? args[1].toLowerCase() : 'all';
+                const targetChannel = client.channels.cache.get(TARGET_CHANNEL_ID);
+
+                if (!targetChannel) {
+                    return message.reply(`❌ ไม่พบห้องเป้าหมาย (Channel ID: ${TARGET_CHANNEL_ID})`);
+                }
+
+                if (targetGame === 'pubg' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.pubg, true);
+                if (targetGame === 'abi' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.abi, true);
+                if (targetGame === 'scum' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.scum, true);
+                if (targetGame === 'valorant' || targetGame === 'val' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.valorant, true);
+                if (targetGame === 'cs2' || targetGame === 'counter' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.cs2, true);
+
+                if (message.channel.id !== TARGET_CHANNEL_ID) {
+                    await message.reply(`✅ ดึงคลิปล่าสุดเรียบร้อยแล้ว!`);
+                }
             }
-        }
+        });
     }
 };
 
-async function fetchAndSendLatestVideo(channel, game) {
+async function fetchAndSendLatestVideo(channel, game, isManualTrigger) {
     try {
-        console.log(`[YouTubeNews] กำลังดึงข้อมูลของ ${game.name}...`);
         const feed = await parser.parseURL(game.feedUrl);
-        
-        if (!feed.items || feed.items.length === 0) {
-            throw new Error('ไม่พบวิดีโอในฟีด');
-        }
+        if (!feed.items || feed.items.length === 0) return;
 
         const latestVideo = feed.items[0];
         const videoTitle = latestVideo.title;
         const videoLink = latestVideo.link;
 
-        // ดึง Video ID ออกมาเพื่อใช้ตรวจจับข้อความซ้ำ
         const videoIdMatch = videoLink.match(/(?:v=|\/v\/|embed\/|youtu\.be\/)([^&?/\s]+)/);
         const videoId = videoIdMatch ? videoIdMatch[1] : videoLink;
 
-        // ดึงข้อความล่าสุดในห้องเป้าหมายมาตรวจสอบ (50 ข้อความล่าสุด)
+        // ดึงข้อความ 50 ข้อความล่าสุดในห้อง
         const messages = await channel.messages.fetch({ limit: 50 });
         
-        // ค้นหาโพสต์เดิมที่มี Video ID เดียวกัน
-        const duplicateMessages = messages.filter(msg => 
+        // ตรวจดูว่ามีคลิปนี้โพสต์ไปแล้วหรือยัง
+        const alreadyPosted = messages.some(msg => 
             msg.author.id === channel.client.user.id && 
             msg.content.includes(videoId)
         );
 
-        // ถ้าพบโพสต์ซ้ำ ให้ลบออกอัตโนมัติก่อนส่งตัวใหม่
-        if (duplicateMessages.size > 0) {
-            console.log(`[YouTubeNews] พบโพสต์ซ้ำของ ${game.name} จำนวน ${duplicateMessages.size} ข้อความ กำลังลบ...`);
-            for (const [msgId, oldMsg] of duplicateMessages) {
-                await oldMsg.delete().catch(err => console.log('ไม่สามารถลบข้อความเก่าได้:', err.message));
+        // หากเป็นการตรวจอัตโนมัติ แล้วเคยโพสต์คลิปนี้ไปแล้ว ให้ข้ามเลย (ไม่โพสต์ซ้ำ)
+        if (!isManualTrigger && alreadyPosted) return;
+
+        // หากเป็นการกดสั่งเอง แล้วมีคลิปเก่าอยู่ ให้ลบอันเก่าออกก่อน
+        if (isManualTrigger && alreadyPosted) {
+            const duplicateMessages = messages.filter(msg => 
+                msg.author.id === channel.client.user.id && 
+                msg.content.includes(videoId)
+            );
+            for (const [, oldMsg] of duplicateMessages) {
+                await oldMsg.delete().catch(() => {});
             }
         }
 
-        // ส่งคลิปล่าสุดเข้าห้อง
+        // ส่งคลิปใหม่
         await channel.send({
             content: `🎬 **คลิปวิดีโออัปเดตใหม่ล่าสุดจาก ${game.name}**\n📌 **${videoTitle}**\n${videoLink} @everyone`
         });
 
-        console.log(`[YouTubeNews] ส่งคลิป ${videoTitle} สำเร็จ!`);
+        console.log(`[YouTubeNews] โพสต์คลิป ${videoTitle} สำเร็จ!`);
     } catch (error) {
-        console.error(`[YouTubeNews Error] ดึงคลิปของ ${game.name} ไม่สำเร็จ:`, error.message);
-        
-        // กรณีดึง RSS ขัดข้อง ให้ส่งลิงก์หน้าช่องหลักสำรอง
-        await channel.send({
-            content: `📢 **อัปเดตล่าสุดจากช่อง ${game.name}**\n${game.fallbackLink} @everyone`
-        });
+        console.error(`[YouTubeNews Error] ${game.name}:`, error.message);
     }
 }
