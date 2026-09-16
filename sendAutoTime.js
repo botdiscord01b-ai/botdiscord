@@ -2,42 +2,48 @@ module.exports = {
     name: 'ready',
     once: true,
     async execute(client) {
-        // 📌 อัปเดตเป็นไอดีห้องเสียงใหม่ของพี่เบิร์ดเรียบร้อยครับ
         const CHANNEL_ID = '1526811651607629834'; 
 
         console.log('✅ ระบบแสดง วัน-เวลา ในห้องเสียง (Voice Channel) เริ่มทำงานแล้ว!');
 
-        // ฟังก์ชันสำหรับอัปเดตชื่อห้อง
+        // ฟังก์ชันอัปเดตชื่อห้อง
         const updateClockChannels = async () => {
-            const ch = client.channels.cache.get(CHANNEL_ID);
-            if (!ch) return;
+            try {
+                const ch = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+                if (!ch) {
+                    console.error(`❌ [Clock] ไม่พบห้องเสียง ID: ${CHANNEL_ID}`);
+                    return;
+                }
 
-            const now = new Date();
+                const now = new Date();
 
-            // 1. ดึง วัน และ เดือน (เช่น 15-Jul) -> แสดงตัวพิมพ์ใหญ่-เล็กได้ตามจริงในห้องเสียง
-            const day = now.toLocaleDateString('en-US', { timeZone: 'Asia/Bangkok', day: '2-digit' });
-            const month = now.toLocaleDateString('en-US', { timeZone: 'Asia/Bangkok', month: 'short' });
-            const dateShort = `${day}-${month}`; 
+                // 1. ดึง วัน และ เดือน (เช่น 15-Jul)
+                const day = now.toLocaleDateString('en-US', { timeZone: 'Asia/Bangkok', day: '2-digit' });
+                const month = now.toLocaleDateString('en-US', { timeZone: 'Asia/Bangkok', month: 'short' });
+                const dateShort = `${day}-${month}`; 
 
-            // 2. ฟอร์แมต เวลา (ชั่วโมง:นาที) -> แสดงเครื่องหมาย : ได้สมบูรณ์แบบในห้องเสียง
-            const timeString = now.toLocaleTimeString('th-TH', {
-                timeZone: 'Asia/Bangkok',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            });
-            
-            // รูปแบบที่แสดงบนห้องเสียง: 📅︱15-Jul︱11:45
-            const newRoomName = `📅︱${dateShort}︱${timeString}`;
+                // 2. ฟอร์แมต เวลา (ชั่วโมง:นาที)
+                const timeString = now.toLocaleTimeString('th-TH', {
+                    timeZone: 'Asia/Bangkok',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
 
-            if (ch.name !== newRoomName) {
-                await ch.setName(newRoomName).catch(err => console.error('❌ ไม่สามารถเปลี่ยนชื่อห้องได้:', err.message));
+                // รูปแบบที่แสดงบนห้องเสียง: 📅︱15-Jul︱11:45
+                const newRoomName = `📅︱${dateShort}︱${timeString}`;
+
+                // เปลี่ยนชื่อเฉพาะเมื่อชื่อไม่ตรงกับอันเดิม
+                if (ch.name !== newRoomName) {
+                    await ch.setName(newRoomName);
+                    console.log(`⏰ อัปเดตชื่อห้องเสียงเป็น: ${newRoomName}`);
+                }
+            } catch (err) {
+                console.error('❌ [Clock Error] ไม่สามารถเปลี่ยนชื่อห้องได้:', err.message);
             }
-            
-            console.log(`⏰ อัปเดตชื่อห้องเสียงเป็น: ${newRoomName}`);
         };
 
-        // ฟังก์ชันคำนวณเพื่อเริ่มรันตอนนาทีที่ลงท้ายด้วยเลข 0 เป๊ะๆ (เช่น .00, .10, .20)
+        // คำนวณเวลารอให้ลงล็อกนาทีที่ลงท้ายด้วยเลข 0 เป๊ะๆ (เช่น .00, .10, .20)
         const startSyncTimeout = () => {
             const now = new Date();
             const minutes = now.getMinutes();
@@ -47,12 +53,12 @@ module.exports = {
             const minutesToWait = nextTargetMinute - minutes;
             const msToWait = (minutesToWait * 60 * 1000) - (seconds * 1000);
 
-            console.log(`⏳ กำลังรออีก ${(msToWait / 1000 / 60).toFixed(2)} นาที เพื่อให้ลงล็อก 10 นาทีถัดไป...`);
+            console.log(`⏳ [Clock] กำลังรออีก ${(msToWait / 1000 / 60).toFixed(2)} นาที เพื่อให้ลงล็อก 10 นาทีถัดไป...`);
 
             setTimeout(async () => {
                 await updateClockChannels();
 
-                // ตั้งทำงานซ้ำทุกๆ 10 นาที (600,000 มิลลิวินาที)
+                // ทำซ้ำทุกๆ 10 นาที (600,000 มิลลิวินาที)
                 setInterval(async () => {
                     await updateClockChannels();
                 }, 600000);
