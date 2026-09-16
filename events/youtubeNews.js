@@ -1,10 +1,15 @@
 const Parser = require('rss-parser');
-const parser = new Parser();
+const parser = new Parser({
+    customFields: {
+        item: [
+            ['media:group', 'mediaGroup']
+        ]
+    }
+});
 
 const TARGET_CHANNEL_ID = '1546974845244416070';
 const CHECK_INTERVAL = 15 * 60 * 1000; // ตรวจสอบอัตโนมัติทุกๆ 15 นาที
 
-// รายชื่อช่อง YouTube
 const YOUTUBE_CHANNELS = {
     pubg: {
         name: 'PUBG: BATTLEGROUNDS (TH)',
@@ -34,17 +39,17 @@ const YOUTUBE_CHANNELS = {
 };
 
 module.exports = {
-    name: 'ready', // ทำงานอัตโนมัติทันทีที่บอทเริ่มทำงาน
+    name: 'ready',
     once: false,
     async execute(client) {
-        console.log('🌐 ระบบติดตามข่าวสาร YouTube พร้อมทำงานแล้ว');
+        console.log('🌐 ระบบติดตามข่าวสาร YouTube (แยกแยะคลิป/ไลฟ์) พร้อมทำงานแล้ว');
 
-        // ตรวจสอบคลิปให้อัตโนมัติทุกๆ 15 นาที
+        // ตรวจสอบอัตโนมัติทุกๆ 15 นาที
         setInterval(async () => {
             const targetChannel = client.channels.cache.get(TARGET_CHANNEL_ID);
             if (!targetChannel) return;
 
-            console.log('[YouTubeAuto] กำลังตรวจสอบคลิปใหม่จากทุกช่อง...');
+            console.log('[YouTubeAuto] กำลังตรวจสอบคลิป/ไลฟ์สดใหม่จากทุกช่อง...');
             for (const key in YOUTUBE_CHANNELS) {
                 await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS[key], false);
             }
@@ -72,7 +77,7 @@ module.exports = {
                 if (targetGame === 'cs2' || targetGame === 'counter' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.cs2, true);
 
                 if (message.channel.id !== TARGET_CHANNEL_ID) {
-                    await message.reply(`✅ ดึงคลิปล่าสุดเรียบร้อยแล้ว!`);
+                    await message.reply(`✅ ดึงวิดีโอ/ไลฟ์สดล่าสุดเรียบร้อยแล้ว!`);
                 }
             }
         });
@@ -91,19 +96,20 @@ async function fetchAndSendLatestVideo(channel, game, isManualTrigger) {
         const videoIdMatch = videoLink.match(/(?:v=|\/v\/|embed\/|youtu\.be\/)([^&?/\s]+)/);
         const videoId = videoIdMatch ? videoIdMatch[1] : videoLink;
 
+        // 🔍 ตรวจสอบว่าเป็น "ไลฟ์สด (Live Stream)" หรือ "คลิปวิดีโอปกติ"
+        const isLive = checkIfLive(latestVideo);
+
         // ดึงข้อความ 50 ข้อความล่าสุดในห้อง
         const messages = await channel.messages.fetch({ limit: 50 });
         
-        // ตรวจดูว่ามีคลิปนี้โพสต์ไปแล้วหรือยัง
+        // ตรวจดูว่ามีวิดีโอนี้โพสต์ไปแล้วหรือยัง
         const alreadyPosted = messages.some(msg => 
             msg.author.id === channel.client.user.id && 
             msg.content.includes(videoId)
         );
 
-        // หากเป็นการตรวจอัตโนมัติ แล้วเคยโพสต์คลิปนี้ไปแล้ว ให้ข้ามเลย (ไม่โพสต์ซ้ำ)
         if (!isManualTrigger && alreadyPosted) return;
 
-        // หากเป็นการกดสั่งเอง แล้วมีคลิปเก่าอยู่ ให้ลบอันเก่าออกก่อน
         if (isManualTrigger && alreadyPosted) {
             const duplicateMessages = messages.filter(msg => 
                 msg.author.id === channel.client.user.id && 
@@ -114,13 +120,34 @@ async function fetchAndSendLatestVideo(channel, game, isManualTrigger) {
             }
         }
 
-        // ส่งคลิปใหม่
-        await channel.send({
-            content: `🎬 **คลิปวิดีโออัปเดตใหม่ล่าสุดจาก ${game.name}**\n📌 **${videoTitle}**\n${videoLink} @everyone`
-        });
+        // 📢 รูปแบบการส่งข้อความแบ่งตามประเภท
+        let messageText = '';
+        if (isLive) {
+            messageText = `🔴 **กำลังไลฟ์สด / สตรีมสดจาก ${game.name}!**\n📌 **${videoTitle}**\n${videoLink} @everyone`;
+        } else {
+            messageText = `🎬 **คลิปวิดีโออัปเดตใหม่ล่าสุดจาก ${game.name}**\n📌 **${videoTitle}**\n${videoLink} @everyone`;
+        }
 
-        console.log(`[YouTubeNews] โพสต์คลิป ${videoTitle} สำเร็จ!`);
+        await channel.send({ content: messageText });
+        console.log(`[YouTubeNews] โพสต์ ${isLive ? 'ไลฟ์สด' : 'คลิป'} "${videoTitle}" สำเร็จ!`);
+
     } catch (error) {
         console.error(`[YouTubeNews Error] ${game.name}:`, error.message);
     }
+}
+
+// ฟังก์ชันสำหรับตรวจจับคำ/ลักษณะของ Live Stream
+function checkIfLive(item) {
+    const title = (item.title || '').toLowerCase();
+    const link = (item.link || '').toLowerCase();
+    const rawContent = JSON.stringify(item).toLowerCase();
+
+    // เช็กว่ามีคำที่สื่อถึงการสตรีมสดในชื่อคลิปหรือลิงก์หรือไม่
+    const liveKeywords = ['live', 'ถ่ายทอดสด', 'สตรีมสด', 'premiere', 'กำลังถ่ายทอดสด'];
+    
+    if (link.includes('/live/') || rawContent.includes('yt:servicetype') || rawContent.includes('livebroadcast')) {
+        return true;
+    }
+
+    return liveKeywords.some(keyword => title.includes(keyword));
 }
