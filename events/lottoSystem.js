@@ -17,7 +17,7 @@ module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        console.log('🎰 [Lotto System] ระบบตรวจหวย เริ่มต้นทำงาน...');
+        console.log('🎰 [Lotto System] ระบบตรวจหวย (GLO Official API) เริ่มต้นทำงาน...');
 
         await updateLottoPost(client);
 
@@ -51,7 +51,7 @@ module.exports = {
                 await interaction.deferReply({ ephemeral: true });
 
                 const userNum = interaction.fields.getTextInputValue('lotto_number');
-                const lottoData = await scrapeSanookNative();
+                const lottoData = await fetchGLOApi();
 
                 if (!lottoData) {
                     return interaction.editReply({ content: '❌ ไม่สามารถดึงข้อมูลผลสลากได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' });
@@ -108,70 +108,80 @@ module.exports = {
     }
 };
 
-// 📡 Scraper รองรับ HTML ล่าสุดของ Sanook
-function scrapeSanookNative() {
+// 📡 ฟังก์ชันเรียก API กองสลาก (GLO Official API)
+function fetchGLOApi() {
     return new Promise((resolve) => {
+        const now = new Date();
+        const yearBE = (now.getFullYear() + 543).toString();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = now.getDate() < 16 ? '01' : '16';
+
+        const postData = JSON.stringify({
+            date: day,
+            month: month,
+            year: yearBE
+        });
+
         const options = {
-            hostname: 'news.sanook.com',
-            path: '/lotto/',
+            hostname: 'www.glo.or.th',
+            path: '/api/checking/getLotteryResult',
+            method: 'POST',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData),
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
             }
         };
 
-        https.get(options, (res) => {
-            let html = '';
-            res.on('data', chunk => html += chunk);
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
-                    const dateMatch = html.match(/<h1[^>]*class="[^"]*lotto-check__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i) ||
-                                      html.match(/ผลสลากกินแบ่งรัฐบาล\s*งวดประจำวันที่\s*([^<]+)/i);
-                    let dateStr = 'งวดล่าสุด';
-                    if (dateMatch && dateMatch[1]) {
-                        dateStr = dateMatch[1].replace(/<[^>]+>/g, '').replace('ผลสลากกินแบ่งรัฐบาล', '').trim();
-                    }
+                    const json = JSON.parse(data);
+                    if (json && json.response && json.response.result && json.response.result.data) {
+                        const prizes = json.response.result.data;
+                        const dateStr = json.response.result.date || `${day}/${month}/${yearBE}`;
 
-                    const numRegex = /<strong[^>]*class="[^"]*lotto-check__number[^"]*"[^>]*>([\s\S]*?)<\/strong>/gi;
-                    const numbers = [];
-                    let match;
+                        const prize1 = prizes.first?.number?.[0]?.value || '------';
+                        const rear2 = prizes.last2?.number?.[0]?.value || '--';
+                        const front3 = prizes.last3f?.number?.map(item => item.value) || ['---', '---'];
+                        const rear3 = prizes.last3b?.number?.map(item => item.value) || ['---', '---'];
 
-                    while ((match = numRegex.exec(html)) !== null) {
-                        const cleanNum = match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, '').trim();
-                        if (cleanNum && !isNaN(cleanNum)) {
-                            numbers.push(cleanNum);
-                        }
-                    }
-
-                    if (numbers.length >= 6) {
                         resolve({
                             date: dateStr,
-                            prize1: numbers[0] || '------',
-                            front3: [numbers[1], numbers[2]],
-                            rear3: [numbers[3], numbers[4]],
-                            rear2: numbers[5] || '--'
+                            prize1: prize1,
+                            front3: front3,
+                            rear3: rear3,
+                            rear2: rear2
                         });
                     } else {
                         resolve(null);
                     }
                 } catch (err) {
-                    console.error('❌ [Scrape Error]:', err.message);
+                    console.error('❌ [GLO API Parse Error]:', err.message);
                     resolve(null);
                 }
             });
-        }).on('error', (err) => {
-            console.error('❌ [Request Error]:', err.message);
+        });
+
+        req.on('error', (err) => {
+            console.error('❌ [GLO API Request Error]:', err.message);
             resolve(null);
         });
+
+        req.write(postData);
+        req.end();
     });
 }
 
-// 📢 อัปเดตการ์ดผลหวย
+// 📢 อัปเดตการ์ดผลหวยลงช่อง Discord
 async function updateLottoPost(client) {
     try {
         const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch(() => null);
         if (!channel) return;
 
-        const lotto = await scrapeSanookNative();
+        const lotto = await fetchGLOApi();
 
         const dateStr = lotto ? lotto.date : 'ล่าสุด';
         const prize1 = lotto ? lotto.prize1 : '------';
@@ -189,7 +199,7 @@ async function updateLottoPost(client) {
                 { name: '🔹 เลขท้าย 3 ตัว', value: `\`\`\`text\n${rear3}\n\`\`\``, inline: true },
                 { name: '🔴 เลขท้าย 2 ตัว', value: `\`\`\`text\n${rear2}\n\`\`\``, inline: true }
             )
-            .setFooter({ text: 'ระบบตรวจหวยอัตโนมัติ', iconURL: client.user.displayAvatarURL() })
+            .setFooter({ text: 'ระบบตรวจหวยอัตโนมัติ (ข้อมูลงวดตรงจากสำนักงานสลากกินแบ่งรัฐบาล)', iconURL: client.user.displayAvatarURL() })
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -204,8 +214,10 @@ async function updateLottoPost(client) {
 
         if (botMessage) {
             await botMessage.edit({ embeds: [embed], components: [row] });
+            console.log('✅ [Lotto System] อัปเดต Embed หวยสำเร็จ!');
         } else {
             await channel.send({ embeds: [embed], components: [row] });
+            console.log('✅ [Lotto System] ส่งข้อความ Embed หวยใหม่สำเร็จ!');
         }
 
     } catch (error) {
