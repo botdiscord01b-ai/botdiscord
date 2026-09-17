@@ -1,9 +1,7 @@
 const { Events, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const mongoose = require('mongoose');
 
 const RANKING_CHANNEL_ID = '1549693123872038984'; // ห้องตารางอันดับ
-const dataFilePath = path.join(__dirname, '../levels.json');
 
 // 🎭 กำหนดไอดียศ Discord ตามเลเวล
 const LEVEL_ROLES = {
@@ -18,18 +16,17 @@ function getXpForNextLevel(level) {
     return Math.floor(100 * Math.pow(level, 1.5));
 }
 
-let userLevels = {};
-if (fs.existsSync(dataFilePath)) {
-    try {
-        userLevels = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
-    } catch (e) {
-        userLevels = {};
-    }
-}
+// 🗄️ กำหนด Schema ของ MongoDB
+const userSchema = new mongoose.Schema({
+    userId: { type: String, required: true, unique: true },
+    xp: { type: Number, default: 0 },
+    level: { type: Number, default: 1 },
+    totalMinutes: { type: Number, default: 0 },
+    prestige: { type: Number, default: 0 },
+    afkMinutes: { type: Number, default: 0 }
+});
 
-function saveData() {
-    fs.writeFileSync(dataFilePath, JSON.stringify(userLevels, null, 2));
-}
+const UserLevel = mongoose.models.UserLevel || mongoose.model('UserLevel', userSchema);
 
 const voiceStates = new Map();
 
@@ -37,9 +34,23 @@ module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
+        // 1. เชื่อมต่อ MongoDB
+        if (mongoose.connection.readyState === 0 && process.env.MONGODB_URI) {
+            try {
+                await mongoose.connect(process.env.MONGODB_URI);
+                console.log('🍃 [MongoDB] เชื่อมต่อฐานข้อมูลสำเร็จแล้ว!');
+                
+                // 🛑 รีเซ็ตข้อมูลเก่าทั้งหมดเพื่อเริ่มนับใหม่ตั้งแต่ต้น
+                await UserLevel.deleteMany({});
+                console.log('🧹 [Reset] ล้างข้อมูลเลเวลเก่าเรียบร้อยแล้ว เริ่มนับนับนับใหม่ตั้งแต่ต้น!');
+            } catch (err) {
+                console.error('❌ [MongoDB Error] ไม่สามารถเชื่อมต่อฐานข้อมูลได้:', err.message);
+            }
+        }
+
         console.log('🔥 [VoiceXP Pro] ระบบเก็บเวลระยะยาวและความยากระดับสูง พร้อมทำงาน!');
 
-        // 1. ดึงข้อมูลสมาชิกที่อยู่ในห้องเสียงอยู่แล้ว ณ ตอนบอทเริ่มทำงาน
+        // 2. ดึงข้อมูลสมาชิกที่อยู่ในห้องเสียงอยู่แล้ว ณ ตอนบอทเริ่มทำงาน
         client.guilds.cache.forEach(guild => {
             guild.channels.cache.forEach(channel => {
                 if (channel.isVoiceBased()) {
@@ -55,19 +66,19 @@ module.exports = {
             });
         });
 
-        // 2. Loop ให้ EXP ทุกๆ 1 นาทีสำหรับคนที่นั่งในห้องเสียง (แก้ปัญหานั่งยาวแล้วไม่ได้ EXP)
+        // 3. Loop ให้ EXP ทุกๆ 1 นาทีสำหรับคนที่นั่งในห้องเสียง
         setInterval(async () => {
             await processVoiceXP(client);
         }, 60 * 1000);
 
-        // 3. อัปเดตกระดานอันดับทุกๆ 5 นาที
+        // 4. อัปเดตกระดานอันดับทุกๆ 5 นาที
         setInterval(async () => {
             await updateLeaderboardChannel(client);
         }, 5 * 60 * 1000);
 
         await updateLeaderboardChannel(client);
 
-        // 4. ตรวจจับการเข้า-ออก-ย้าย ห้องเสียง
+        // 5. ตรวจจับการเข้า-ออก-ย้าย ห้องเสียง
         client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
             const userId = newState.id || oldState.id;
             const member = newState.member || oldState.member;
@@ -126,26 +137,31 @@ async function processVoiceXP(client) {
 
             const xpGained = Math.floor(10 * xpMultiplier);
 
-            if (!userLevels[userId]) {
-                userLevels[userId] = { xp: 0, level: 1, totalMinutes: 0, prestige: 0, afkMinutes: 0 };
+            // ดึงข้อมูลผู้ใช้จาก MongoDB
+            let userData = await UserLevel.findOne({ userId });
+            if (!userData) {
+                userData = new UserLevel({ userId, xp: 0, level: 1, totalMinutes: 0, prestige: 0, afkMinutes: 0 });
             }
 
-            userLevels[userId].xp += xpGained;
-            userLevels[userId].totalMinutes += 1;
-            if (isAfk) userLevels[userId].afkMinutes = (userLevels[userId].afkMinutes || 0) + 1;
+            userData.xp += xpGained;
+            userData.totalMinutes += 1;
+            if (isAfk) userData.afkMinutes = (userData.afkMinutes || 0) + 1;
 
             // คำนวณเลเวลอัป
-            let currentLevel = userLevels[userId].level;
+            let currentLevel = userData.level;
             let xpNeeded = getXpForNextLevel(currentLevel);
             let leveledUp = false;
 
-            while (userLevels[userId].xp >= xpNeeded) {
-                userLevels[userId].xp -= xpNeeded;
-                userLevels[userId].level += 1;
-                currentLevel = userLevels[userId].level;
+            while (userData.xp >= xpNeeded) {
+                userData.xp -= xpNeeded;
+                userData.level += 1;
+                currentLevel = userData.level;
                 xpNeeded = getXpForNextLevel(currentLevel);
                 leveledUp = true;
             }
+
+            // บันทึกคำสั่งลง MongoDB
+            await userData.save();
 
             if (leveledUp) {
                 await checkAndAssignRoles(member, currentLevel);
@@ -155,7 +171,6 @@ async function processVoiceXP(client) {
             console.error(`❌ Error processing XP for user ${userId}:`, err.message);
         }
     }
-    saveData();
 }
 
 // 🌟 แจกยศ Discord ตามระดับเลเวล
@@ -188,8 +203,10 @@ async function updateLeaderboardChannel(client) {
         const channel = await client.channels.fetch(RANKING_CHANNEL_ID).catch(() => null);
         if (!channel) return;
 
-        const sorted = Object.entries(userLevels)
-            .sort(([, a], [, b]) => {
+        // ดึงข้อมูล 10 อันดับแรกจาก MongoDB
+        const allUsers = await UserLevel.find({});
+        const sorted = allUsers
+            .sort((a, b) => {
                 const totalScoreA = ((a.prestige || 0) * 1000000) + (a.level * 10000) + a.xp;
                 const totalScoreB = ((b.prestige || 0) * 1000000) + (b.level * 10000) + b.xp;
                 return totalScoreB - totalScoreA;
@@ -204,8 +221,8 @@ async function updateLeaderboardChannel(client) {
             top3Text = '```text\nยังไม่มีข้อมูลการใช้งานห้องเสียงในขณะนี้\n```';
         } else {
             for (let i = 0; i < sorted.length; i++) {
-                const [id, stats] = sorted[i];
-                const member = await channel.guild.members.fetch(id).catch(() => null);
+                const stats = sorted[i];
+                const member = await channel.guild.members.fetch(stats.userId).catch(() => null);
                 const name = member ? member.displayName : 'ไม่พบสมาชิก';
 
                 const hours = Math.floor(stats.totalMinutes / 60);
