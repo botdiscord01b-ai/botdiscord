@@ -13,18 +13,22 @@ const https = require('https');
 const LOTTO_CHANNEL_ID = '1549991650862964857'; 
 
 module.exports = {
+    // 📌 แก้ไข DeprecationWarning โดยใช้ ClientReady ตามมาตรฐาน Discord.js v14/v15
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        console.log('🎰 [Lotto System] เริ่มต้นทำงานระบบสลากกินแบ่ง...');
+        console.log('🎰 [Lotto System] เริ่มต้นทำงานระบบสลากกินแบ่ง (Sanook API)...');
 
         await updateLottoPost(client);
 
+        // เช็กอัปเดตทุกๆ 30 นาที
         setInterval(async () => {
             await updateLottoPost(client);
         }, 30 * 60 * 1000);
 
+        // 🔘 Interaction Listener
         client.on(Events.InteractionCreate, async (interaction) => {
+            
             if (interaction.isButton() && interaction.customId === 'btn_check_lotto') {
                 const modal = new ModalBuilder()
                     .setCustomId('modal_lotto_input')
@@ -47,31 +51,37 @@ module.exports = {
                 await interaction.deferReply({ ephemeral: true });
 
                 const userNum = interaction.fields.getTextInputValue('lotto_number');
-                const lottoData = await fetchLottoDataIPv4();
+                const lottoData = await fetchSanookLotto();
 
                 if (!lottoData) {
-                    return interaction.editReply({ content: '❌ ไม่สามารถเชื่อมต่อฐานข้อมูลตรวจหวยได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' });
+                    return interaction.editReply({ content: '❌ ไม่สามารถดึงข้อมูลผลสลากได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' });
                 }
 
                 let wonPrizes = [];
 
-                lottoData.prizes.forEach(p => {
-                    if (p.number && p.number.includes(userNum)) {
-                        wonPrizes.push(`${p.name} (เงินรางวัล ${Number(p.reward).toLocaleString()} บาท)`);
+                // ตรวจรางวัลที่ 1
+                if (lottoData.prize1.includes(userNum)) {
+                    wonPrizes.push('รางวัลที่ 1 (เงินรางวัล 6,000,000 บาท)');
+                }
+
+                // ตรวจเลขหน้า 3 ตัว
+                lottoData.front3.forEach(num => {
+                    if (userNum.startsWith(num)) {
+                        wonPrizes.push(`เลขหน้า 3 ตัว [เลข ${num}] (เงินรางวัล 4,000 บาท)`);
                     }
                 });
 
-                lottoData.runningNumbers.forEach(p => {
-                    if (!p.number) return;
-                    const isTwo = p.id === 'runningNumberRearTwo';
-                    const isFrontThree = p.id === 'runningNumberFrontThree';
-                    
-                    const userSub = isTwo ? userNum.slice(-2) : (isFrontThree ? userNum.slice(0, 3) : userNum.slice(-3));
-
-                    if (p.number.includes(userSub)) {
-                        wonPrizes.push(`${p.name} [เลข ${userSub}] (เงินรางวัล ${Number(p.reward).toLocaleString()} บาท)`);
+                // ตรวจเลขท้าย 3 ตัว
+                lottoData.rear3.forEach(num => {
+                    if (userNum.endsWith(num)) {
+                        wonPrizes.push(`เลขท้าย 3 ตัว [เลข ${num}] (เงินรางวัล 4,000 บาท)`);
                     }
                 });
+
+                // ตรวจเลขท้าย 2 ตัว
+                if (userNum.endsWith(lottoData.rear2)) {
+                    wonPrizes.push(`เลขท้าย 2 ตัว [เลข ${lottoData.rear2}] (เงินรางวัล 2,000 บาท)`);
+                }
 
                 const resultEmbed = new EmbedBuilder().setTimestamp();
 
@@ -102,82 +112,61 @@ module.exports = {
     }
 };
 
-// 📡 Helper ดึง HTTP/HTTPS โดยบังคับใช้ IPv4 และ Timeout 5 วินาที
-function getHttpsJson(url) {
-    return new Promise((resolve, reject) => {
-        const req = https.get(url, {
-            family: 4, // 🔒 บังคับใช้ IPv4 แก้ปัญหา IPv6 Timeout ใน Docker/VPS
+// 📡 ดึงข้อมูลตรงจาก Sanook API
+function fetchSanookLotto() {
+    return new Promise((resolve) => {
+        const url = 'https://news.sanook.com/lotto/check/latest/';
+
+        https.get(url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
-            },
-            timeout: 5000
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/json'
+            }
         }, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
+            let body = '';
+            res.on('data', chunk => body += chunk);
             res.on('end', () => {
                 try {
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(e);
+                    const parsed = JSON.parse(body);
+                    const result = parsed.result || parsed;
+
+                    // แปลง Format
+                    const prize1 = result.prize1 ? [result.prize1] : [];
+                    const front3 = result.front3 || [];
+                    const rear3 = result.rear3 || [];
+                    const rear2 = result.rear2 || '';
+
+                    resolve({
+                        date: result.date || 'งวดล่าสุด',
+                        prize1: prize1.length ? prize1 : ['------'],
+                        front3: front3.length ? front3 : ['---', '---'],
+                        rear3: rear3.length ? rear3 : ['---', '---'],
+                        rear2: rear2 || '--'
+                    });
+                } catch (err) {
+                    console.error('❌ [Sanook Parse Error]:', err.message);
+                    resolve(null);
                 }
             });
-        });
-
-        req.on('error', err => reject(err));
-        req.on('timeout', () => {
-            req.destroy();
-            reject(new Error('Request Timeout'));
+        }).on('error', (err) => {
+            console.error('❌ [Sanook Request Error]:', err.message);
+            resolve(null);
         });
     });
 }
 
-// 📡 ฟังก์ชันดึงข้อมูล API พร้อมระบบ Fallback
-async function fetchLottoDataIPv4() {
-    const urls = [
-        'https://lotto.api.rayriffy.com/latest',
-        'https://raw.githubusercontent.com/rayriffy/lotto-api/master/latest.json'
-    ];
-
-    for (const url of urls) {
-        try {
-            const data = await getHttpsJson(url);
-            const result = data.response || data;
-
-            if (result && result.prizes) {
-                const p1Obj = result.prizes?.find(p => p.id === 'prizeFirst');
-                const f3Obj = result.runningNumbers?.find(p => p.id === 'runningNumberFrontThree');
-                const r3Obj = result.runningNumbers?.find(p => p.id === 'runningNumberRearThree');
-                const r2Obj = result.runningNumbers?.find(p => p.id === 'runningNumberRearTwo');
-
-                return {
-                    date: result.date || 'ล่าสุด',
-                    prize1: p1Obj?.number?.[0] || '------',
-                    front3: f3Obj?.number?.join('  ') || '--- ---',
-                    rear3: r3Obj?.number?.join('  ') || '--- ---',
-                    rear2: r2Obj?.number?.[0] || '--',
-                    prizes: result.prizes || [],
-                    runningNumbers: result.runningNumbers || []
-                };
-            }
-        } catch (err) {
-            console.error(`⚠️ [IPv4 Fetch Failed]: ${url} -> ${err.message}`);
-        }
-    }
-
-    return null;
-}
-
+// 📢 อัปเดตการ์ดผลหวย
 async function updateLottoPost(client) {
     try {
         const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch(() => null);
         if (!channel) return;
 
-        const lotto = await fetchLottoDataIPv4();
+        const lotto = await fetchSanookLotto();
 
         const dateStr = lotto ? lotto.date : 'ล่าสุด';
-        const prize1 = lotto ? lotto.prize1 : '------';
-        const front3 = lotto ? lotto.front3 : '--- ---';
-        const rear3 = lotto ? lotto.rear3 : '--- ---';
+        const prize1 = lotto ? lotto.prize1.join(' , ') : '------';
+        const front3 = lotto ? lotto.front3.join('  ') : '--- ---';
+        const rear3 = lotto ? lotto.rear3.join('  ') : '--- ---';
         const rear2 = lotto ? lotto.rear2 : '--';
 
         const embed = new EmbedBuilder()
