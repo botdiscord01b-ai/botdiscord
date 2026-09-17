@@ -10,22 +10,27 @@ const {
 } = require('discord.js');
 const https = require('https');
 
+// 📌 ระบุ ID ห้องสำหรับโพสต์การ์ดตรวจหวย
 const LOTTO_CHANNEL_ID = '1549991650862964857'; 
 
 module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        console.log('🎰 [Lotto System] ระบบตรวจหวย Native Scraper พร้อมทำงาน!');
+        console.log('🎰 [Lotto System] ระบบตรวจหวย (Native Scraper) เริ่มต้นทำงาน...');
 
+        // โพสต์หรืออัปเดตผลหวยทันทีที่รัน
         await updateLottoPost(client);
 
+        // ตั้งเวลาอัปเดตอัตโนมัติทุกๆ 30 นาที
         setInterval(async () => {
             await updateLottoPost(client);
         }, 30 * 60 * 1000);
 
+        // 🔘 ตัวรับเหตุการณ์กดปุ่ม และส่งฟอร์ม (Interaction Listener)
         client.on(Events.InteractionCreate, async (interaction) => {
             
+            // เมื่อกดปุ่มตรวจหวย
             if (interaction.isButton() && interaction.customId === 'btn_check_lotto') {
                 const modal = new ModalBuilder()
                     .setCustomId('modal_lotto_input')
@@ -44,6 +49,7 @@ module.exports = {
                 await interaction.showModal(modal);
             }
 
+            // เมื่อผู้ใช้ส่งเลขจาก Modal
             if (interaction.isModalSubmit() && interaction.customId === 'modal_lotto_input') {
                 await interaction.deferReply({ ephemeral: true });
 
@@ -56,22 +62,26 @@ module.exports = {
 
                 let wonPrizes = [];
 
+                // ตรวจรางวัลที่ 1
                 if (userNum === lottoData.prize1) {
                     wonPrizes.push('รางวัลที่ 1 (เงินรางวัล 6,000,000 บาท)');
                 }
 
+                // ตรวจเลขหน้า 3 ตัว
                 lottoData.front3.forEach(num => {
                     if (userNum.startsWith(num)) {
                         wonPrizes.push(`เลขหน้า 3 ตัว [เลข ${num}] (เงินรางวัล 4,000 บาท)`);
                     }
                 });
 
+                // ตรวจเลขท้าย 3 ตัว
                 lottoData.rear3.forEach(num => {
                     if (userNum.endsWith(num)) {
                         wonPrizes.push(`เลขท้าย 3 ตัว [เลข ${num}] (เงินรางวัล 4,000 บาท)`);
                     }
                 });
 
+                // ตรวจเลขท้าย 2 ตัว
                 if (userNum.endsWith(lottoData.rear2)) {
                     wonPrizes.push(`เลขท้าย 2 ตัว [เลข ${lottoData.rear2}] (เงินรางวัล 2,000 บาท)`);
                 }
@@ -91,6 +101,7 @@ module.exports = {
                         .setDescription(`หมายเลขสลาก: **${userNum}**\nประจำงวดวันที่: **${lottoData.date}**\n\n*ไม่พบรางวัลในงวดนี้ งวดหน้าเอาใหม่ครับ!*`);
                 }
 
+                // พยายามส่งผลเข้า DM ผู้ใช้ หากปิด DM ให้ส่งในช่องแทน
                 try {
                     await interaction.user.send({ embeds: [resultEmbed] });
                     await interaction.editReply({ content: '📩 บอทส่งผลตรวจสลากไปทาง **ข้อความส่วนตัว (DM)** เรียบร้อยแล้วครับ!' });
@@ -105,6 +116,7 @@ module.exports = {
     }
 };
 
+// 📡 ฟังก์ชันดึง HTML จาก Sanook และสกัดตัวเลขด้วย RegEx
 function scrapeSanookNative() {
     return new Promise((resolve) => {
         const options = {
@@ -120,12 +132,14 @@ function scrapeSanookNative() {
             res.on('data', chunk => html += chunk);
             res.on('end', () => {
                 try {
+                    // ดึงงวดวันที่
                     const dateMatch = html.match(/class="lotto-check__title"[^>]*>([\s\S]*?)<\/strong>/i);
                     let dateStr = 'งวดล่าสุด';
                     if (dateMatch && dateMatch[1]) {
                         dateStr = dateMatch[1].replace(/<[^>]+>/g, '').replace('ผลสลากกินแบ่งรัฐบาล', '').trim();
                     }
 
+                    // ดึงตัวเลขรางวัล
                     const numberRegex = /class="lotto-check__number"[^>]*>([\s\S]*?)<\/strong>/g;
                     const numbers = [];
                     let match;
@@ -147,21 +161,29 @@ function scrapeSanookNative() {
                         resolve(null);
                     }
                 } catch (err) {
-                    console.error('❌ [Parse Error]:', err.message);
+                    console.error('❌ [Native Parse Error]:', err.message);
                     resolve(null);
                 }
             });
         }).on('error', (err) => {
-            console.error('❌ [Request Error]:', err.message);
+            console.error('❌ [Native Request Error]:', err.message);
             resolve(null);
         });
     });
 }
 
+// 📢 ฟังก์ชันส่ง/อัปเดตการ์ด Embed ตรวจหวย
 async function updateLottoPost(client) {
     try {
-        const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch(() => null);
-        if (!channel) return;
+        const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch((err) => {
+            console.error(`❌ [Lotto Error] ไม่สามารถเข้าถึงห้อง ID (${LOTTO_CHANNEL_ID}): ${err.message}`);
+            return null;
+        });
+
+        if (!channel) {
+            console.error(`⚠️ [Lotto Warning] ไม่พบห้องตรวจหวย กรุณาตรวจสอบ ID ห้อง หรือ Permissions ของบอท`);
+            return;
+        }
 
         const lotto = await scrapeSanookNative();
 
@@ -191,13 +213,16 @@ async function updateLottoPost(client) {
                 .setStyle(ButtonStyle.Success)
         );
 
+        // ดึงข้อความเก่าเพื่อทำการ Edit ทับ (ถ้ามี)
         const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
         const botMessage = messages ? messages.find(m => m.author.id === client.user.id && m.embeds[0]?.title?.includes('ผลสลากกินแบ่งรัฐบาล')) : null;
 
         if (botMessage) {
             await botMessage.edit({ embeds: [embed], components: [row] });
+            console.log('✅ [Lotto System] อัปเดต Embed ผลหวยสำเร็จ!');
         } else {
             await channel.send({ embeds: [embed], components: [row] });
+            console.log('✅ [Lotto System] ส่งข้อความ Embed ผลหวยใหม่สำเร็จ!');
         }
 
     } catch (error) {
