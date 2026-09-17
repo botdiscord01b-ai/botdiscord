@@ -101,7 +101,7 @@ module.exports = {
                         .setDescription(`หมายเลขสลาก: **${userNum}**\nประจำงวดวันที่: **${lottoData.date}**\n\n*ไม่พบรางวัลในงวดนี้ งวดหน้าเอาใหม่ครับ!*`);
                 }
 
-                // พยายามส่งผลเข้า DM ผู้ใช้ หากปิด DM ให้ส่งในช่องแทน
+                // ส่งผลเข้า DM ผู้ใช้
                 try {
                     await interaction.user.send({ embeds: [resultEmbed] });
                     await interaction.editReply({ content: '📩 บอทส่งผลตรวจสลากไปทาง **ข้อความส่วนตัว (DM)** เรียบร้อยแล้วครับ!' });
@@ -132,14 +132,12 @@ function scrapeSanookNative() {
             res.on('data', chunk => html += chunk);
             res.on('end', () => {
                 try {
-                    // ดึงงวดวันที่
                     const dateMatch = html.match(/class="lotto-check__title"[^>]*>([\s\S]*?)<\/strong>/i);
                     let dateStr = 'งวดล่าสุด';
                     if (dateMatch && dateMatch[1]) {
                         dateStr = dateMatch[1].replace(/<[^>]+>/g, '').replace('ผลสลากกินแบ่งรัฐบาล', '').trim();
                     }
 
-                    // ดึงตัวเลขรางวัล
                     const numberRegex = /class="lotto-check__number"[^>]*>([\s\S]*?)<\/strong>/g;
                     const numbers = [];
                     let match;
@@ -172,7 +170,7 @@ function scrapeSanookNative() {
     });
 }
 
-// 📢 ฟังก์ชันส่ง/อัปเดตการ์ด Embed ตรวจหวย
+// 📢 ฟังก์ชันส่งโพสต์ Embed ผลหวยใหม่ลงช่อง
 async function updateLottoPost(client) {
     try {
         const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch((err) => {
@@ -213,17 +211,9 @@ async function updateLottoPost(client) {
                 .setStyle(ButtonStyle.Success)
         );
 
-        // ดึงข้อความเก่าเพื่อทำการ Edit ทับ (ถ้ามี)
-        const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
-        const botMessage = messages ? messages.find(m => m.author.id === client.user.id && m.embeds[0]?.title?.includes('ผลสลากกินแบ่งรัฐบาล')) : null;
-
-        if (botMessage) {
-            await botMessage.edit({ embeds: [embed], components: [row] });
-            console.log('✅ [Lotto System] อัปเดต Embed ผลหวยสำเร็จ!');
-        } else {
-            await channel.send({ embeds: [embed], components: [row] });
-            console.log('✅ [Lotto System] ส่งข้อความ Embed ผลหวยใหม่สำเร็จ!');
-        }
+        // บังคับส่งเป็นข้อความใหม่ลงห้องโดยตรง
+        await channel.send({ embeds: [embed], components: [row] });
+        console.log('✅ [Lotto System] ส่งข้อความ Embed ผลหวยใหม่ลงช่องสำเร็จ!');
 
     } catch (error) {
         console.error('❌ [Lotto Post Error]:', error.message);
