@@ -10,28 +10,26 @@ const {
 } = require('discord.js');
 
 const LOTTO_CHANNEL_ID = '1549991650862964857'; 
-
-// 🌐 API หลัก และ API สำรอง
-const PRIMARY_API = 'https://lotto.api.rayriffy.com/latest';
-const BACKUP_API = 'https://thai-lottery-api.vercel.app/latest';
+const API_URL = 'https://lotto.kapook.com/api/lotto_latest.json';
 
 module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        console.log('🎰 [Lotto System] ระบบพร้อมทำงาน!');
+        console.log('🎰 [Lotto System] ระบบตรวจหวย (Kapook API) พร้อมทำงาน!');
 
-        // อัปเดตการ์ดตรวจหวยทันที
+        // อัปเดตการ์ดตรวจหวยทันทีที่บอทออนไลน์
         await updateLottoPost(client);
 
-        // เช็กผลหวยอัปเดตทุก 30 นาที
+        // เช็กอัปเดตทุกๆ 30 นาที
         setInterval(async () => {
             await updateLottoPost(client);
         }, 30 * 60 * 1000);
 
-        // 🔘 ตรวจจับ Interactions (Button & Modal)
+        // 🔘 ระบบตรวจจับ Interaction (กดปุ่ม / ส่ง Modal)
         client.on(Events.InteractionCreate, async (interaction) => {
             
+            // 1. เมื่อผู้ใช้กดปุ่มตรวจหวย -> เด้งหน้าต่าง Modal
             if (interaction.isButton() && interaction.customId === 'btn_check_lotto') {
                 const modal = new ModalBuilder()
                     .setCustomId('modal_lotto_input')
@@ -50,38 +48,44 @@ module.exports = {
                 await interaction.showModal(modal);
             }
 
+            // 2. เมื่อผู้ใช้ส่งเลขสลาก -> ตรวจสอบผลแล้วส่งเข้า DM
             if (interaction.isModalSubmit() && interaction.customId === 'modal_lotto_input') {
                 await interaction.deferReply({ ephemeral: true });
 
                 const userNum = interaction.fields.getTextInputValue('lotto_number');
-                const lottoData = await fetchLottoData();
+                const lottoData = await fetchKapookLotto();
 
                 if (!lottoData) {
-                    return interaction.editReply({ content: '❌ ไม่สามารถเชื่อมต่อฐานข้อมูลตรวจหวยได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' });
+                    return interaction.editReply({ content: '❌ ไม่สามารถดึงข้อมูลผลหวยได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' });
                 }
 
                 let wonPrizes = [];
 
-                // ตรวจรางวัลหลัก
-                lottoData.prizes.forEach(p => {
-                    if (p.number && p.number.includes(userNum)) {
-                        wonPrizes.push(`${p.name} (เงินรางวัล ${Number(p.reward).toLocaleString()} บาท)`);
+                // ตรวจรางวัลที่ 1
+                if (lottoData.prize1.includes(userNum)) {
+                    wonPrizes.push('รางวัลที่ 1 (เงินรางวัล 6,000,000 บาท)');
+                }
+
+                // ตรวจเลขหน้า 3 ตัว
+                lottoData.front3.forEach(num => {
+                    if (userNum.startsWith(num)) {
+                        wonPrizes.push(`เลขหน้า 3 ตัว [เลข ${num}] (เงินรางวัล 4,000 บาท)`);
                     }
                 });
 
-                // ตรวจเลขหน้า 3 / เลขท้าย 3 / เลขท้าย 2
-                lottoData.runningNumbers.forEach(p => {
-                    if (!p.number) return;
-                    const isTwo = p.id === 'runningNumberRearTwo';
-                    const isFrontThree = p.id === 'runningNumberFrontThree';
-                    
-                    const userSub = isTwo ? userNum.slice(-2) : (isFrontThree ? userNum.slice(0, 3) : userNum.slice(-3));
-
-                    if (p.number.includes(userSub)) {
-                        wonPrizes.push(`${p.name} [เลข ${userSub}] (เงินรางวัล ${Number(p.reward).toLocaleString()} บาท)`);
+                // ตรวจเลขท้าย 3 ตัว
+                lottoData.rear3.forEach(num => {
+                    if (userNum.endsWith(num)) {
+                        wonPrizes.push(`เลขท้าย 3 ตัว [เลข ${num}] (เงินรางวัล 4,000 บาท)`);
                     }
                 });
 
+                // ตรวจเลขท้าย 2 ตัว
+                if (userNum.endsWith(lottoData.rear2)) {
+                    wonPrizes.push(`เลขท้าย 2 ตัว [เลข ${lottoData.rear2}] (เงินรางวัล 2,000 บาท)`);
+                }
+
+                // สร้าง Embed สรุปผล
                 const resultEmbed = new EmbedBuilder().setTimestamp();
 
                 if (wonPrizes.length > 0) {
@@ -94,15 +98,16 @@ module.exports = {
                     resultEmbed
                         .setColor('#FF0000')
                         .setTitle(`เสียใจด้วยครับ คุณไม่ถูกรางวัล 😭`)
-                        .setDescription(`หมายเลขสลาก: **${userNum}**\nประจำงวดวันที่: **${lottoData.date}**\n\n*ไม่พบรางวัลในงวดนี้ งวดหน้าเอาใหม่ครับ!*`);
+                        .setDescription(`หมายเลขสลาก: **${userNum}**\nประจำงวดวันที่: **${lottoData.date}**\n\n*ไม่พบรางวัลในงวดนี้ อย่าพึ่งท้อ งวดหน้าเอาใหม่ครับ!*`);
                 }
 
+                // ส่งผลตรวจเข้า Inbox (DM)
                 try {
                     await interaction.user.send({ embeds: [resultEmbed] });
-                    await interaction.editReply({ content: '📩 บอทส่งผลตรวจสลากไปทาง **ข้อความส่วนตัว (DM)** เรียบร้อยแล้วครับ!' });
+                    await interaction.editReply({ content: '📩 บอทได้ส่งผลการตรวจสลากไปทาง **ข้อความส่วนตัว (DM)** เรียบร้อยแล้วครับ!' });
                 } catch (dmErr) {
                     await interaction.editReply({ 
-                        content: '⚠️ คุณปิด DM บอทจึงส่งผลตรวจให้ที่นี่แทนครับ:', 
+                        content: '⚠️ คุณปิดรับ DM ข้อความส่วนตัว บอทจึงแสดงผลตรวจให้ตรงนี้แทนครับ:', 
                         embeds: [resultEmbed] 
                     });
                 }
@@ -111,63 +116,41 @@ module.exports = {
     }
 };
 
-// 📡 ฟังก์ชันดึงข้อมูลจาก API แบบมีระบบสำรอง
-async function fetchLottoData() {
-    // ลอง API หลักก่อน
+// 📡 ฟังก์ชันดึงข้อมูลผลหวยจาก Kapook API
+async function fetchKapookLotto() {
     try {
-        const res = await fetch(PRIMARY_API);
+        const res = await fetch(API_URL, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!res.ok) return null;
+
         const data = await res.json();
-        if (data && data.status === 'success' && data.response) {
-            return parseData(data.response);
-        }
+        
+        return {
+            date: data.date || 'งวดล่าสุด',
+            prize1: data.prize1 || ['------'],
+            front3: data.runningNumberFrontThree || ['---', '---'],
+            rear3: data.runningNumberRearThree || ['---', '---'],
+            rear2: data.runningNumberRearTwo?.[0] || '--'
+        };
     } catch (err) {
-        console.error('⚠️ [Primary Lotto API Failed] กำลังดึงจาก API สำรอง...');
+        console.error('❌ [Kapook Fetch Error]:', err.message);
+        return null;
     }
-
-    // ถ้า API หลักล้มเหลว ให้ใช้ API สำรอง
-    try {
-        const res = await fetch(BACKUP_API);
-        const data = await res.json();
-        if (data && data.response) {
-            return parseData(data.response);
-        }
-    } catch (backupErr) {
-        console.error('❌ [All Lotto APIs Failed]:', backupErr.message);
-    }
-
-    return null;
 }
 
-// จัดการรูปแบบ Format ข้อมูลให้ตรงกัน
-function parseData(result) {
-    const p1Obj = result.prizes?.find(p => p.id === 'prizeFirst');
-    const f3Obj = result.runningNumbers?.find(p => p.id === 'runningNumberFrontThree');
-    const r3Obj = result.runningNumbers?.find(p => p.id === 'runningNumberRearThree');
-    const r2Obj = result.runningNumbers?.find(p => p.id === 'runningNumberRearTwo');
-
-    return {
-        date: result.date || 'ล่าสุด',
-        prize1: p1Obj?.number?.[0] || '------',
-        front3: f3Obj?.number?.join('  ') || '--- ---',
-        rear3: r3Obj?.number?.join('  ') || '--- ---',
-        rear2: r2Obj?.number?.[0] || '--',
-        prizes: result.prizes || [],
-        runningNumbers: result.runningNumbers || []
-    };
-}
-
-// 📢 ฟังก์ชันส่ง/แก้ไข การ์ดในห้อง Discord
+// 📢 ฟังก์ชันส่ง/แก้ไข การ์ดแจ้งผลหวยในห้อง
 async function updateLottoPost(client) {
     try {
         const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch(() => null);
         if (!channel) return;
 
-        const lotto = await fetchLottoData();
+        const lotto = await fetchKapookLotto();
 
         const dateStr = lotto ? lotto.date : 'ล่าสุด';
-        const prize1 = lotto ? lotto.prize1 : '------';
-        const front3 = lotto ? lotto.front3 : '--- ---';
-        const rear3 = lotto ? lotto.rear3 : '--- ---';
+        const prize1 = lotto ? lotto.prize1.join(' , ') : '------';
+        const front3 = lotto ? lotto.front3.join('  ') : '--- ---';
+        const rear3 = lotto ? lotto.rear3.join('  ') : '--- ---';
         const rear2 = lotto ? lotto.rear2 : '--';
 
         const embed = new EmbedBuilder()
