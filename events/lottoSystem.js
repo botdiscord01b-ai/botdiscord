@@ -9,15 +9,15 @@ const {
     TextInputStyle 
 } = require('discord.js');
 const https = require('https');
+const cheerio = require('cheerio');
 
 const LOTTO_CHANNEL_ID = '1549991650862964857'; 
 
 module.exports = {
-    // 📌 แก้ไข DeprecationWarning โดยใช้ ClientReady ตามมาตรฐาน Discord.js v14/v15
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        console.log('🎰 [Lotto System] เริ่มต้นทำงานระบบสลากกินแบ่ง (Sanook API)...');
+        console.log('🎰 [Lotto System] เริ่มต้นทำงานระบบสลากกินแบ่ง (Sanook Scraper)...');
 
         await updateLottoPost(client);
 
@@ -51,7 +51,7 @@ module.exports = {
                 await interaction.deferReply({ ephemeral: true });
 
                 const userNum = interaction.fields.getTextInputValue('lotto_number');
-                const lottoData = await fetchSanookLotto();
+                const lottoData = await scrapeSanookLotto();
 
                 if (!lottoData) {
                     return interaction.editReply({ content: '❌ ไม่สามารถดึงข้อมูลผลสลากได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' });
@@ -60,7 +60,7 @@ module.exports = {
                 let wonPrizes = [];
 
                 // ตรวจรางวัลที่ 1
-                if (lottoData.prize1.includes(userNum)) {
+                if (userNum === lottoData.prize1) {
                     wonPrizes.push('รางวัลที่ 1 (เงินรางวัล 6,000,000 บาท)');
                 }
 
@@ -112,44 +112,49 @@ module.exports = {
     }
 };
 
-// 📡 ดึงข้อมูลตรงจาก Sanook API
-function fetchSanookLotto() {
+// 📡 ฟังก์ชัน Scrape อ่าน HTML จาก Sanook โดยตรง
+function scrapeSanookLotto() {
     return new Promise((resolve) => {
-        const url = 'https://news.sanook.com/lotto/check/latest/';
-
-        https.get(url, {
+        const options = {
+            hostname: 'news.sanook.com',
+            path: '/lotto/',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'application/json'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
             }
-        }, (res) => {
-            let body = '';
-            res.on('data', chunk => body += chunk);
+        };
+
+        https.get(options, (res) => {
+            let html = '';
+            res.on('data', chunk => html += chunk);
             res.on('end', () => {
                 try {
-                    const parsed = JSON.parse(body);
-                    const result = parsed.result || parsed;
+                    const $ = cheerio.load(html);
 
-                    // แปลง Format
-                    const prize1 = result.prize1 ? [result.prize1] : [];
-                    const front3 = result.front3 || [];
-                    const rear3 = result.rear3 || [];
-                    const rear2 = result.rear2 || '';
-
-                    resolve({
-                        date: result.date || 'งวดล่าสุด',
-                        prize1: prize1.length ? prize1 : ['------'],
-                        front3: front3.length ? front3 : ['---', '---'],
-                        rear3: rear3.length ? rear3 : ['---', '---'],
-                        rear2: rear2 || '--'
+                    const date = $('.lotto-check__title').first().text().replace('ผลสลากกินแบ่งรัฐบาล', '').trim();
+                    
+                    const numbers = [];
+                    $('.lotto-check__number').each((_, el) => {
+                        numbers.push($(el).text().trim());
                     });
+
+                    if (numbers.length >= 6) {
+                        resolve({
+                            date: date || 'งวดล่าสุด',
+                            prize1: numbers[0] || '------',
+                            front3: [numbers[1], numbers[2]],
+                            rear3: [numbers[3], numbers[4]],
+                            rear2: numbers[5] || '--'
+                        });
+                    } else {
+                        resolve(null);
+                    }
                 } catch (err) {
-                    console.error('❌ [Sanook Parse Error]:', err.message);
+                    console.error('❌ [Scrape Parse Error]:', err.message);
                     resolve(null);
                 }
             });
         }).on('error', (err) => {
-            console.error('❌ [Sanook Request Error]:', err.message);
+            console.error('❌ [Scrape Request Error]:', err.message);
             resolve(null);
         });
     });
@@ -161,17 +166,17 @@ async function updateLottoPost(client) {
         const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch(() => null);
         if (!channel) return;
 
-        const lotto = await fetchSanookLotto();
+        const lotto = await scrapeSanookLotto();
 
         const dateStr = lotto ? lotto.date : 'ล่าสุด';
-        const prize1 = lotto ? lotto.prize1.join(' , ') : '------';
+        const prize1 = lotto ? lotto.prize1 : '------';
         const front3 = lotto ? lotto.front3.join('  ') : '--- ---';
         const rear3 = lotto ? lotto.rear3.join('  ') : '--- ---';
         const rear2 = lotto ? lotto.rear2 : '--';
 
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle(`🎰 ผลสลากกินแบ่งรัฐบาล ประจำงวดวันที่ ${dateStr}`)
+            .setTitle(`🎰 ผลสลากกินแบ่งรัฐบาล ${dateStr}`)
             .setDescription('กดปุ่มด้านล่างเพื่อพิมพ์กรอกเลขสลาก ผลการตรวจจะถูกส่งเข้า Inbox ส่วนตัวของคุณทันที!')
             .addFields(
                 { name: '🥇 รางวัลที่ 1', value: `\`\`\`text\n${prize1}\n\`\`\``, inline: false },
