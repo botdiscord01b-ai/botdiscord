@@ -8,11 +8,9 @@ const {
     TextInputBuilder, 
     TextInputStyle 
 } = require('discord.js');
+const https = require('https');
 
 const LOTTO_CHANNEL_ID = '1549991650862964857'; 
-
-// 🌐 เปลี่ยนมาใช้ Gateway สำรองที่ยิงข้าม Cloudflare
-const API_URL = 'https://lotto.api.rayriffy.com/latest';
 
 module.exports = {
     name: Events.ClientReady,
@@ -20,17 +18,13 @@ module.exports = {
     async execute(client) {
         console.log('🎰 [Lotto System] เริ่มต้นทำงานระบบสลากกินแบ่ง...');
 
-        // โพสต์/อัปเดตทันทีที่เปิดบอท
         await updateLottoPost(client);
 
-        // เช็กผลหวยอัปเดตทุก 30 นาที
         setInterval(async () => {
             await updateLottoPost(client);
         }, 30 * 60 * 1000);
 
-        // 🔘 Interaction Listener
         client.on(Events.InteractionCreate, async (interaction) => {
-            
             if (interaction.isButton() && interaction.customId === 'btn_check_lotto') {
                 const modal = new ModalBuilder()
                     .setCustomId('modal_lotto_input')
@@ -53,7 +47,7 @@ module.exports = {
                 await interaction.deferReply({ ephemeral: true });
 
                 const userNum = interaction.fields.getTextInputValue('lotto_number');
-                const lottoData = await fetchLottoData();
+                const lottoData = await fetchLottoDataIPv4();
 
                 if (!lottoData) {
                     return interaction.editReply({ content: '❌ ไม่สามารถเชื่อมต่อฐานข้อมูลตรวจหวยได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' });
@@ -61,7 +55,6 @@ module.exports = {
 
                 let wonPrizes = [];
 
-                // ตรวจรางวัล
                 lottoData.prizes.forEach(p => {
                     if (p.number && p.number.includes(userNum)) {
                         wonPrizes.push(`${p.name} (เงินรางวัล ${Number(p.reward).toLocaleString()} บาท)`);
@@ -109,25 +102,45 @@ module.exports = {
     }
 };
 
-// 📡 ฟังก์ชันดึงข้อมูลพร้อมแก้ปัญหา Fetch Failed จาก IP Blocker
-async function fetchLottoData() {
+// 📡 Helper ดึง HTTP/HTTPS โดยบังคับใช้ IPv4 และ Timeout 5 วินาที
+function getHttpsJson(url) {
+    return new Promise((resolve, reject) => {
+        const req = https.get(url, {
+            family: 4, // 🔒 บังคับใช้ IPv4 แก้ปัญหา IPv6 Timeout ใน Docker/VPS
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
+            },
+            timeout: 5000
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+
+        req.on('error', err => reject(err));
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Request Timeout'));
+        });
+    });
+}
+
+// 📡 ฟังก์ชันดึงข้อมูล API พร้อมระบบ Fallback
+async function fetchLottoDataIPv4() {
     const urls = [
         'https://lotto.api.rayriffy.com/latest',
-        'https://raw.githubusercontent.com/rayriffy/lotto-api/master/latest.json' // Backup ยิงตรงไป Github Raw
+        'https://raw.githubusercontent.com/rayriffy/lotto-api/master/latest.json'
     ];
 
     for (const url of urls) {
         try {
-            const res = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
-            });
-
-            if (!res.ok) continue;
-
-            const data = await res.json();
+            const data = await getHttpsJson(url);
             const result = data.response || data;
 
             if (result && result.prizes) {
@@ -147,20 +160,19 @@ async function fetchLottoData() {
                 };
             }
         } catch (err) {
-            console.error(`⚠️ [Fetch Failed]: ${url} - ${err.message}`);
+            console.error(`⚠️ [IPv4 Fetch Failed]: ${url} -> ${err.message}`);
         }
     }
 
     return null;
 }
 
-// 📢 ฟังก์ชันส่ง/แก้ไข การ์ดในห้อง Discord
 async function updateLottoPost(client) {
     try {
         const channel = await client.channels.fetch(LOTTO_CHANNEL_ID).catch(() => null);
         if (!channel) return;
 
-        const lotto = await fetchLottoData();
+        const lotto = await fetchLottoDataIPv4();
 
         const dateStr = lotto ? lotto.date : 'ล่าสุด';
         const prize1 = lotto ? lotto.prize1 : '------';
