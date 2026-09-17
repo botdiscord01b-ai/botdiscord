@@ -5,7 +5,7 @@ const path = require('path');
 const RANKING_CHANNEL_ID = '1549693123872038984'; // ห้องตารางอันดับ
 const dataFilePath = path.join(__dirname, '../levels.json');
 
-// 🎭 กำหนดไอดียศ Discord ตามเลเวล (ใส่ ID ยศของคุณแทนที่ได้เลย)
+// 🎭 กำหนดไอดียศ Discord ตามเลเวล
 const LEVEL_ROLES = {
     5: '1205000000000000005',   // ยศ Lv.5
     15: '1205000000000000015',  // ยศ Lv.15
@@ -13,7 +13,7 @@ const LEVEL_ROLES = {
     50: '1205000000000000050',  // ยศ Lv.50
 };
 
-// 📈 สูตรคำนวณ EXP ที่ต้องใช้สำหรับเลเวลถัดไป (Exponential)
+// 📈 สูตรคำนวณ EXP สำหรับเลเวลถัดไป
 function getXpForNextLevel(level) {
     return Math.floor(100 * Math.pow(level, 1.5));
 }
@@ -39,95 +39,126 @@ module.exports = {
     async execute(client) {
         console.log('🔥 [VoiceXP Pro] ระบบเก็บเวลระยะยาวและความยากระดับสูง พร้อมทำงาน!');
 
-        // อัปเดตกระดานอันดับทุกๆ 5 นาที
+        // 1. ดึงข้อมูลสมาชิกที่อยู่ในห้องเสียงอยู่แล้ว ณ ตอนบอทเริ่มทำงาน
+        client.guilds.cache.forEach(guild => {
+            guild.channels.cache.forEach(channel => {
+                if (channel.isVoiceBased()) {
+                    channel.members.forEach(member => {
+                        if (!member.user.bot) {
+                            voiceStates.set(member.id, {
+                                startTime: Date.now(),
+                                channelId: channel.id
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
+        // 2. Loop ให้ EXP ทุกๆ 1 นาทีสำหรับคนที่นั่งในห้องเสียง (แก้ปัญหานั่งยาวแล้วไม่ได้ EXP)
+        setInterval(async () => {
+            await processVoiceXP(client);
+        }, 60 * 1000);
+
+        // 3. อัปเดตกระดานอันดับทุกๆ 5 นาที
         setInterval(async () => {
             await updateLeaderboardChannel(client);
         }, 5 * 60 * 1000);
 
         await updateLeaderboardChannel(client);
 
-        // 🎙️ ตรวจจับเวลาเข้า-ออก และปรับลด EXP หากอยู่คนเดียว/Mute
+        // 4. ตรวจจับการเข้า-ออก-ย้าย ห้องเสียง
         client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
             const userId = newState.id || oldState.id;
             const member = newState.member || oldState.member;
 
             if (!member || member.user.bot) return;
 
-            // 1. กดเข้าห้องเสียง
+            // เข้าห้องเสียง
             if (!oldState.channelId && newState.channelId) {
                 voiceStates.set(userId, {
                     startTime: Date.now(),
-                    isMuted: newState.selfMute || newState.selfDeaf
+                    channelId: newState.channelId
                 });
             }
-
-            // 2. กดออกจากห้องเสียง
+            // ออกจากห้องเสียง
             else if (oldState.channelId && !newState.channelId) {
-                const session = voiceStates.get(userId);
-                if (!session) return;
-
-                const timeSpentMs = Date.now() - session.startTime;
                 voiceStates.delete(userId);
-
-                const minutesSpent = Math.floor(timeSpentMs / (1000 * 60));
-                if (minutesSpent < 1) return;
-
-                // 🛡️ ระบบ Anti-AFK: เช็กว่าห้องมีกี่คน และ Mute อยู่หรือไม่
-                const oldChannel = oldState.channel;
-                const nonBotMembers = oldChannel ? oldChannel.members.filter(m => !m.user.bot).size : 0;
-                
-                let xpMultiplier = 1.0;
-                let isAfk = false;
-
-                // อยู่คนเดียวในห้อง -> ได้ EXP แค่ 20%
-                if (nonBotMembers <= 1) {
-                    xpMultiplier = 0.2;
-                    isAfk = true;
-                }
-                // ปิดไมค์+ปิดหูฟัง -> ได้ EXP แค่ 30%
-                else if (oldState.selfMute && oldState.selfDeaf) {
-                    xpMultiplier = 0.3;
-                    isAfk = true;
-                }
-
-                // ฐาน EXP: 1 นาที = 10 EXP (คูณด้วย Multiplier)
-                const xpGained = Math.floor(minutesSpent * 10 * xpMultiplier);
-
-                if (!userLevels[userId]) {
-                    userLevels[userId] = { xp: 0, level: 1, totalMinutes: 0, prestige: 0, afkMinutes: 0 };
-                }
-
-                userLevels[userId].xp += xpGained;
-                userLevels[userId].totalMinutes += minutesSpent;
-                if (isAfk) userLevels[userId].afkMinutes = (userLevels[userId].afkMinutes || 0) + minutesSpent;
-
-                // ตรวจสอบเลเวลอัปตามสูตร Exponential
-                let currentLevel = userLevels[userId].level;
-                let xpNeeded = getXpForNextLevel(currentLevel);
-
-                let leveledUp = false;
-                while (userLevels[userId].xp >= xpNeeded) {
-                    userLevels[userId].xp -= xpNeeded;
-                    userLevels[userId].level += 1;
-                    currentLevel = userLevels[userId].level;
-                    xpNeeded = getXpForNextLevel(currentLevel);
-                    leveledUp = true;
-                }
-
-                saveData();
-
-                // ถ้าเลเวลอัป ให้ตรวจเช็กแจกยศ
-                if (leveledUp) {
-                    await checkAndAssignRoles(member, currentLevel);
-                }
-
-                await updateLeaderboardChannel(client);
+            }
+            // ย้ายห้องเสียง
+            else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+                voiceStates.set(userId, {
+                    startTime: Date.now(),
+                    channelId: newState.channelId
+                });
             }
         });
     }
 };
 
-// 🌟 ให้ยศ Discord ตามระดับเลเวล
+// ⚙️ ฟังก์ชันประมวลผล EXP รายนาที
+async function processVoiceXP(client) {
+    for (const [userId, session] of voiceStates.entries()) {
+        try {
+            const channel = await client.channels.fetch(session.channelId).catch(() => null);
+            if (!channel) continue;
+
+            const member = channel.members.get(userId);
+            if (!member || member.user.bot) continue;
+
+            // เช็กเงื่อนไข Anti-AFK
+            const nonBotMembers = channel.members.filter(m => !m.user.bot).size;
+            const voiceState = member.voice;
+
+            let xpMultiplier = 1.0;
+            let isAfk = false;
+
+            // อยู่คนเดียว -> ได้ EXP 20%
+            if (nonBotMembers <= 1) {
+                xpMultiplier = 0.2;
+                isAfk = true;
+            }
+            // ปิดไมค์ + ปิดหูฟัง -> ได้ EXP 30%
+            else if (voiceState.selfMute && voiceState.selfDeaf) {
+                xpMultiplier = 0.3;
+                isAfk = true;
+            }
+
+            const xpGained = Math.floor(10 * xpMultiplier);
+
+            if (!userLevels[userId]) {
+                userLevels[userId] = { xp: 0, level: 1, totalMinutes: 0, prestige: 0, afkMinutes: 0 };
+            }
+
+            userLevels[userId].xp += xpGained;
+            userLevels[userId].totalMinutes += 1;
+            if (isAfk) userLevels[userId].afkMinutes = (userLevels[userId].afkMinutes || 0) + 1;
+
+            // คำนวณเลเวลอัป
+            let currentLevel = userLevels[userId].level;
+            let xpNeeded = getXpForNextLevel(currentLevel);
+            let leveledUp = false;
+
+            while (userLevels[userId].xp >= xpNeeded) {
+                userLevels[userId].xp -= xpNeeded;
+                userLevels[userId].level += 1;
+                currentLevel = userLevels[userId].level;
+                xpNeeded = getXpForNextLevel(currentLevel);
+                leveledUp = true;
+            }
+
+            if (leveledUp) {
+                await checkAndAssignRoles(member, currentLevel);
+            }
+
+        } catch (err) {
+            console.error(`❌ Error processing XP for user ${userId}:`, err.message);
+        }
+    }
+    saveData();
+}
+
+// 🌟 แจกยศ Discord ตามระดับเลเวล
 async function checkAndAssignRoles(member, currentLevel) {
     try {
         for (const [lvl, roleId] of Object.entries(LEVEL_ROLES)) {
@@ -144,14 +175,14 @@ async function checkAndAssignRoles(member, currentLevel) {
     }
 }
 
-// 🟩 สร้าง Progress Bar
+// 🟩 Progress Bar
 function createProgressBar(current, max, length = 8) {
     const percentage = Math.min(Math.max(current / max, 0), 1);
     const progress = Math.round(length * percentage);
     return '🟩'.repeat(progress) + '⬜'.repeat(length - progress);
 }
 
-// 📊 ฟังก์ชันอัปเดตกระดานอันดับสวยงาม
+// 📊 อัปเดตกระดานอันดับ
 async function updateLeaderboardChannel(client) {
     try {
         const channel = await client.channels.fetch(RANKING_CHANNEL_ID).catch(() => null);
@@ -159,8 +190,8 @@ async function updateLeaderboardChannel(client) {
 
         const sorted = Object.entries(userLevels)
             .sort(([, a], [, b]) => {
-                const totalScoreA = (a.prestige * 1000000) + (a.level * 10000) + a.xp;
-                const totalScoreB = (b.prestige * 1000000) + (b.level * 10000) + b.xp;
+                const totalScoreA = ((a.prestige || 0) * 1000000) + (a.level * 10000) + a.xp;
+                const totalScoreB = ((b.prestige || 0) * 1000000) + (b.level * 10000) + b.xp;
                 return totalScoreB - totalScoreA;
             })
             .slice(0, 10);
