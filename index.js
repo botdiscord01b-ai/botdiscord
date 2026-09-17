@@ -16,6 +16,11 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// =========================================================
+// CONSTANTS (ยศชั่วคราว)
+// =========================================================
+const TEMP_ROLE_ID = '1550062346435567657';
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // =========================================================
 // CLIENT (เพิ่ม GuildPresences สำหรับจับกิจกรรมเล่นเกม)
@@ -58,7 +63,6 @@ if (fs.existsSync(commandsPath)) {
 
         const stat = fs.statSync(itemPath);
 
-
         // -------------------------------
         // โฟลเดอร์ย่อย
         // -------------------------------
@@ -96,7 +100,6 @@ if (fs.existsSync(commandsPath)) {
                     );
                 }
             }
-
 
         // -------------------------------
         // ไฟล์ command ปกติ
@@ -151,7 +154,6 @@ if (fs.existsSync(eventsPath)) {
         const stat =
             fs.statSync(itemPath);
 
-
         // -------------------------------
         // Event ในโฟลเดอร์ย่อย
         // -------------------------------
@@ -193,7 +195,6 @@ if (fs.existsSync(eventsPath)) {
                     );
                 }
             }
-
 
         // -------------------------------
         // Event ปกติ
@@ -237,7 +238,6 @@ client.once(
             `✅ Logged in as ${client.user.tag}!`
         );
 
-
         // =====================================================
         // REGISTER SLASH COMMANDS
         // =====================================================
@@ -254,7 +254,6 @@ client.once(
                     process.env.BOT_TOKEN
                 );
 
-
             await rest.put(
                 Routes.applicationGuildCommands(
                     process.env.CLIENT_ID,
@@ -264,7 +263,6 @@ client.once(
                     body: commandsArray
                 }
             );
-
 
             console.log(
                 '✅ ลงทะเบียนคำสั่งสำเร็จเรียบร้อย!'
@@ -278,6 +276,34 @@ client.once(
             );
         }
 
+        // =====================================================
+        // ระบบตรวจเช็กและถอดยศชั่วคราวตกค้างทุก 1 ชั่วโมง
+        // =====================================================
+        const checkTempRoles = async () => {
+            try {
+                for (const [, guild] of client.guilds.cache) {
+                    const tempRole = guild.roles.cache.get(TEMP_ROLE_ID);
+                    if (!tempRole) continue;
+
+                    const members = await guild.members.fetch();
+                    for (const [, member] of members) {
+                        if (member.roles.cache.has(TEMP_ROLE_ID)) {
+                            // เช็กระยะเวลาเข้าร่วมหรือรับยศคร่าวๆ
+                            const joinedTime = member.joinedTimestamp;
+                            if (Date.now() - joinedTime > ONE_DAY_MS) {
+                                await member.roles.remove(TEMP_ROLE_ID).catch(() => null);
+                                console.log(`⏰ [Auto Check] ถอดยศชั่วคราวจาก ${member.user.tag} เรียบร้อยแล้ว`);
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('❌ เกิดข้อผิดพลาดในการสแกนยศชั่วคราว:', err);
+            }
+        };
+
+        checkTempRoles();
+        setInterval(checkTempRoles, 60 * 60 * 1000);
 
         // =====================================================
         // ห้องลงทะเบียน
@@ -285,14 +311,12 @@ client.once(
         const targetChannelId =
             '1486030638464237631';
 
-
         try {
 
             const channel =
                 await client.channels.fetch(
                     targetChannelId
                 );
-
 
             if (!channel) {
 
@@ -303,7 +327,6 @@ client.once(
                 return;
             }
 
-
             // =================================================
             // ดึงข้อความเก่า
             // =================================================
@@ -311,7 +334,6 @@ client.once(
                 await channel.messages.fetch({
                     limit: 50
                 });
-
 
             // =================================================
             // ลบข้อความเก่าของบอท
@@ -343,13 +365,11 @@ client.once(
                 }
             }
 
-
             // =================================================
             // GUILD
             // =================================================
             const guild =
                 channel.guild;
-
 
             // =================================================
             // ROLE IDS
@@ -360,16 +380,13 @@ client.once(
                 '1462774552726606017'
             ];
 
-
             const emojis = [
                 '🎮',
                 '🔥',
                 '🏆'
             ];
 
-
             const options = [];
-
 
             // =================================================
             // สร้างรายการยศ
@@ -383,18 +400,15 @@ client.once(
                 const roleId =
                     roleIds[i];
 
-
                 const role =
                     guild.roles.cache.get(
                         roleId
                     );
 
-
                 const roleName =
                     role
                         ? role.name
                         : `ยศ (${roleId})`;
-
 
                 options.push(
 
@@ -405,7 +419,7 @@ client.once(
                         )
 
                         .setDescription(
-                            `เลือกรับยศ ${roleName}`
+                            `เลือกรับยศ ${roleName} (พร้อมรับยศชั่วคราว 1 วัน)`
                         )
 
                         .setValue(
@@ -417,7 +431,6 @@ client.once(
                         )
                 );
             }
-
 
             // =================================================
             // SELECT MENU
@@ -437,13 +450,11 @@ client.once(
                         options
                     );
 
-
             const row =
                 new ActionRowBuilder()
                     .addComponents(
                         selectMenu
                     );
-
 
             // =================================================
             // REGISTER.PNG
@@ -454,8 +465,6 @@ client.once(
                     'register.png'
                 );
 
-
-            // ตรวจสอบว่ามีไฟล์จริงไหม
             if (
                 !fs.existsSync(imagePath)
             ) {
@@ -471,11 +480,9 @@ client.once(
                 return;
             }
 
-
             console.log(
                 `✅ พบ register.png: ${imagePath}`
             );
-
 
             // =================================================
             // ATTACHMENT
@@ -488,9 +495,8 @@ client.once(
                     }
                 );
 
-
             // =================================================
-            // EMBED
+            // EMBED (อัปเดตข้อความแนะนำเรื่องยศชั่วคราวเรียบร้อย)
             // =================================================
             const embed =
                 new EmbedBuilder()
@@ -505,10 +511,14 @@ client.once(
 
                     .setDescription(
                         'ยินดีต้อนรับเข้าสู่ระบบลงทะเบียนรับยศ\n\n' +
-                        '🎮 เลือกยศที่ต้องการจากเมนูด้านล่าง\n' +
-                        '📝 จากนั้นกรอกชื่อที่ต้องการใช้ในเซิร์ฟเวอร์\n' +
-                        '🔎 กรอก Steam ID64 เพื่อทำการตรวจสอบ VAC\n\n' +
-                        '⚠️ กรุณากรอกข้อมูลให้ถูกต้อง'
+                        '🎮 **ขั้นตอนการลงทะเบียน:**\n' +
+                        '1️⃣ เลือกยศที่ต้องการจากเมนูด้านล่าง\n' +
+                        '2️⃣ กรอกชื่อที่ต้องการใช้ในเซิร์ฟเวอร์\n' +
+                        '3️⃣ กรอก Steam ID64 เพื่อทำการตรวจสอบ VAC\n\n' +
+                        '⏰ **สิทธิพิเศษเพิ่มเติม:**\n' +
+                        `เมื่อลงทะเบียนสำเร็จ คุณจะได้รับยศชั่วคราว **<@&${TEMP_ROLE_ID}>** เพิ่มเติมทันที!\n` +
+                        '*(ยศชั่วคราวนี้จะมีอายุการใช้งาน **24 ชั่วโมง (1 วัน)** และจะถูกถอดออกอัตโนมัติ)*\n\n' +
+                        '⚠️ *กรุณากรอกข้อมูลให้ถูกต้องเพื่อผลประโยชน์ของตัวท่านเอง*'
                     )
 
                     .setImage(
@@ -519,7 +529,6 @@ client.once(
                         text:
                             'ระบบลงทะเบียนอัตโนมัติ'
                     });
-
 
             // =================================================
             // ส่งรูป + Embed + Menu
@@ -539,19 +548,9 @@ client.once(
                 ]
             });
 
-
             console.log(
                 '✅ สร้างห้องลงทะเบียนอัตโนมัติสำเร็จ!'
             );
-
-            console.log(
-                '🖼️ ส่ง register.png แล้ว'
-            );
-
-            console.log(
-                '🎮 ส่งเมนูเลือกยศแล้ว'
-            );
-
 
         } catch (error) {
 
@@ -562,7 +561,6 @@ client.once(
         }
     }
 );
-
 
 // =========================================================
 // LOGIN
