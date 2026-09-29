@@ -15,11 +15,87 @@ const path = require('path');
 
 const TEMP_ROLE_ID = '1550062346435567657';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const INACTIVE_LIMIT_MS = 30 * 24 * 60 * 60 * 1000; // 30 วัน (มิลลิวินาที)
+
+// Map สำหรับเก็บบันทึกเวลาทำกิจกรรมล่าสุดของสมาชิก (UserId -> Timestamp)
+const lastActivityMap = new Map();
+
+// ตัวแปรเช็คสถานะการตั้ง Cron/Interval
+let isCheckLoopStarted = false;
 
 module.exports = {
     name: Events.InteractionCreate,
 
     async execute(interaction) {
+
+        // =========================================================
+        // 0. START INACTIVE CHECKER LOOP (รันระบบเช็ค 30 วัน เมื่อเริ่มใช้งาน)
+        // =========================================================
+        if (!isCheckLoopStarted && interaction.client) {
+            isCheckLoopStarted = true;
+            const client = interaction.client;
+
+            // บันทึกกิจกรรมจากการพิมพ์ข้อความ
+            client.on('messageCreate', (message) => {
+                if (message.author.bot || !message.guild) return;
+                lastActivityMap.set(message.author.id, Date.now());
+            });
+
+            // บันทึกกิจกรรมจากการเข้าห้องเสียง
+            client.on('voiceStateUpdate', (oldState, newState) => {
+                const member = newState.member;
+                if (!member || member.user.bot) return;
+                if (newState.channelId) {
+                    lastActivityMap.set(member.id, Date.now());
+                }
+            });
+
+            // ตั้งระบบตรวจเช็คอัตโนมัติทุกๆ 24 ชั่วโมง
+            setInterval(async () => {
+                try {
+                    const guild = client.guilds.cache.first();
+                    if (!guild) return;
+
+                    const members = await guild.members.fetch();
+                    const now = Date.now();
+                    const logChannel = guild.channels.cache.get('1538429606409928815');
+
+                    for (const [id, member] of members) {
+                        if (member.user.bot) continue;
+
+                        // ยกเว้นยศแอดมินหรือยศที่ต้องการระบุ
+                        const EXCLUDED_ROLE_IDS = ['1550062346435567657'];
+                        if (member.roles.cache.some(r => EXCLUDED_ROLE_IDS.includes(r.id))) continue;
+
+                        const lastActiveTime = lastActivityMap.get(id) || member.joinedTimestamp;
+
+                        if (now - lastActiveTime > INACTIVE_LIMIT_MS) {
+                            const rolesToRemove = member.roles.cache.filter(r => r.id !== guild.id);
+
+                            if (rolesToRemove.size > 0) {
+                                await member.roles.remove(rolesToRemove);
+                                console.log(`🧹 ถอดยศจาก ${member.user.tag} เนื่องจากไม่แอกทีฟเกิน 30 วัน`);
+
+                                if (logChannel) {
+                                    const formattedDate = new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH', { hour12: false });
+                                    await logChannel.send(
+                                        '```md\n' +
+                                        `# ⚠️ ถอดยศเนื่องจากไม่มีความเคลื่อนไหว (30 วัน)\n` +
+                                        `- สมาชิก: ${member.user.tag} (${member.id})\n` +
+                                        `- ชื่อในดิสคอร์ด: ${member.displayName}\n` +
+                                        `- ยศที่ถูกถอด: ${rolesToRemove.map(r => r.name).join(', ')}\n` +
+                                        `- เวลา: ${formattedDate}\n` +
+                                        '```'
+                                    );
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('❌ เกิดข้อผิดพลาดในระบบตรวจเช็คสมาชิกไม่ออกเสียง 30 วัน:', err);
+                }
+            }, 24 * 60 * 60 * 1000);
+        }
 
         // =========================================================
         // 1. SLASH COMMANDS (เช่น /setup, /checkvac)
@@ -81,10 +157,12 @@ module.exports = {
                         '🔰 **ข้อแตกต่างประเภทการรับยศ:**\n' +
                         '▪️ **ยศถาวร:** ต้องกรอกชื่อดิสคอร์ด + Steam ID64 (ตรวจ VAC Ban)\n' +
                         '▪️ **ยศชั่วคราว (1 วัน):** กรอกเฉพาะชื่อดิสคอร์ด (ไม่ต้องกรอก Steam ID)\n\n' +
+                        '⚠️ **เงื่อนไขการรักษายศ (การถอดยศอัตโนมัติ):**\n' +
+                        '• สมาชิกที่ไม่เข้าห้องเสียง หรือไม่พิมพ์ข้อความใดๆ ในเซิร์ฟเวอร์**เกิน 30 วัน** จะถูกถอดยศออกทั้งหมดโดยอัตโนมัติ\n\n' +
                         '🎮 **วิธีใช้งาน:** เลือกยศที่ต้องการจากเมนูด้านล่างแล้วกรอกข้อมูลตามที่ระบบร้องขอ'
                     )
                     .setImage('attachment://register.png')
-                    .setFooter({ text: 'ระบบลงทะเบียนอัตโนมัติ' });
+                    .setFooter({ text: 'ระบบลงทะเบียนและรักษาสภาพสมาชิกอัตโนมัติ' });
 
                 try {
                     const messages = await interaction.channel.messages.fetch({ limit: 50 });
@@ -99,7 +177,7 @@ module.exports = {
                 return await interaction.reply({ content: '✅ อัปเดตห้องลงทะเบียนเรียบร้อยแล้ว', ephemeral: true });
             }
 
-            // --- 1.2 คำสั่งอื่นๆ จากโฟลเดอร์ commands (เช่น /checkvac) ---
+            // --- 1.2 คำสั่งอื่นๆ จากโฟลเดอร์ commands ---
             const command = interaction.client.commands?.get(interaction.commandName);
             if (command) {
                 try {
@@ -123,7 +201,6 @@ module.exports = {
         if (interaction.isStringSelectMenu() && interaction.customId === 'select_role_menu') {
             const selectedValue = interaction.values[0];
 
-            // --- A. เลือกยศชั่วคราว (กรอกเฉพาะชื่อ) ---
             if (selectedValue === 'temp_role_only') {
                 const modal = new ModalBuilder()
                     .setCustomId('modal_temp_role')
@@ -140,7 +217,6 @@ module.exports = {
                 return await interaction.showModal(modal);
             }
 
-            // --- B. เลือกยศถาวร (กรอกชื่อ + Steam ID) ---
             if (selectedValue.startsWith('perm_')) {
                 const roleId = selectedValue.replace('perm_', '');
 
@@ -175,9 +251,7 @@ module.exports = {
         // =========================================================
         if (interaction.isModalSubmit()) {
 
-            // -----------------------------------------------------
-            // 3.1 ยศชั่วคราว (ไม่ต้องตรวจ Steam ID)
-            // -----------------------------------------------------
+            // --- 3.1 ยศชั่วคราว ---
             if (interaction.customId === 'modal_temp_role') {
                 await interaction.deferReply({ ephemeral: true });
 
@@ -190,14 +264,12 @@ module.exports = {
                     return await interaction.editReply({ content: '❌ ไม่พบยศชั่วคราวในระบบ กรุณาติดต่อแอดมิน' });
                 }
 
-                // เปลี่ยนชื่อ
                 let nickChanged = true;
                 try { await member.setNickname(newNickname); } catch (e) { nickChanged = false; }
 
-                // ให้ยศชั่วคราว
                 await member.roles.add(tempRole.id);
+                lastActivityMap.set(member.id, Date.now()); // บันทึกกิจกรรมตอนลงทะเบียน
 
-                // ตั้งเวลาถอดยศใน 24 ชั่วโมง
                 setTimeout(async () => {
                     try {
                         const updatedMember = await guild.members.fetch(member.id).catch(() => null);
@@ -210,7 +282,6 @@ module.exports = {
                     }
                 }, ONE_DAY_MS);
 
-                // Log แจ้งเตือน
                 const now = new Date();
                 const formattedDate = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', { hour12: false });
                 const logChannel = guild.channels.cache.get('1538429606409928815');
@@ -235,9 +306,7 @@ module.exports = {
                 return await interaction.editReply({ content: replyText });
             }
 
-            // -----------------------------------------------------
-            // 3.2 ยศถาวร (ตรวจ Steam ID64 + VAC Ban + ระบุเกมที่ถูกแบน)
-            // -----------------------------------------------------
+            // --- 3.2 ยศถาวร ---
             if (interaction.customId.startsWith('modal_perm_role_')) {
                 await interaction.deferReply({ ephemeral: true });
 
@@ -252,7 +321,6 @@ module.exports = {
                 const member = interaction.member;
                 const guild = interaction.guild;
 
-                // ตรวจสอบ VAC และ Game Ban
                 const apiKey = process.env.STEAM_API_KEY;
                 let vacStatus = '🟢 ไม่พบ VAC / Game Ban';
                 let vacBansCount = 0;
@@ -274,7 +342,6 @@ module.exports = {
                             if (vacBansCount > 0 || gameBansCount > 0) {
                                 vacStatus = `🔴 พบประวัติแบน (${daysSinceLastBan} วันที่แล้ว)`;
 
-                                // ดึงหน้าโปรไฟล์เพื่อสแกนรายชื่อเกมที่ถูกแบน
                                 try {
                                     const profileRes = await fetch(`https://steamcommunity.com/profiles/${steamId}?l=english`, {
                                         headers: { 'User-Agent': 'Mozilla/5.0' }
@@ -301,22 +368,19 @@ module.exports = {
                     return await interaction.editReply({ content: '❌ ไม่พบยศนี้ในระบบ กรุณาติดต่อแอดมิน' });
                 }
 
-                // เปลี่ยนชื่อ
                 let nickChanged = true;
                 try { await member.setNickname(newNickname); } catch (e) { nickChanged = false; }
 
-                // เพิ่มยศถาวร
                 await member.roles.add(targetRole.id);
+                lastActivityMap.set(member.id, Date.now()); // บันทึกกิจกรรมตอนลงทะเบียน
 
                 const now = new Date();
                 const formattedDate = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', { hour12: false });
 
-                // จัดรูปแบบข้อความแสดงชื่อเกมที่โดนแบน
                 const bannedGamesText = bannedGamesList.length > 0 
                     ? bannedGamesList.join(', ') 
-                    : (vacBansCount > 0 || gameBansCount > 0 ? 'โปรไฟล์ตั้งค่าความเป็นส่วนตัวไว้ (ไม่สามารถดึงชื่อเกมได้)' : 'ไม่มี');
+                    : (vacBansCount > 0 || gameBansCount > 0 ? 'Steam ไม่เปิดเผยชื่อเกมที่ถูกแบนผ่าน API (แสดงเฉพาะจำนวนครั้ง/วัน)' : 'ไม่มี');
 
-                // LOG 1 (ห้องตรวจสอบ VAC)
                 const logChannel1 = guild.channels.cache.get('1538429606409928815');
                 if (logChannel1) {
                     await logChannel1.send(
@@ -337,7 +401,6 @@ module.exports = {
                     );
                 }
 
-                // LOG 2 (ห้องบันทึกประวัติการรับยศ)
                 const logChannel2 = guild.channels.cache.get('1494379391327928370');
                 if (logChannel2) {
                     await logChannel2.send(
