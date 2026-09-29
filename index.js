@@ -38,37 +38,37 @@ const client = new Client({
 });
 
 // =========================================================
-// COMMANDS LOADER
+// COMMANDS LOADER (โหลดไฟล์คำสั่งทั้งหมดจากโฟลเดอร์ commands)
 // =========================================================
 client.commands = new Collection();
 const commandsArray = [];
 const commandsPath = path.join(__dirname, 'commands');
 
-if (fs.existsSync(commandsPath)) {
-    const items = fs.readdirSync(commandsPath);
+function loadCommands(dir) {
+    if (!fs.existsSync(dir)) return;
+    const items = fs.readdirSync(dir);
+
     for (const item of items) {
-        const itemPath = path.join(commandsPath, item);
+        const itemPath = path.join(dir, item);
         const stat = fs.statSync(itemPath);
 
         if (stat.isDirectory()) {
-            const subFiles = fs.readdirSync(itemPath).filter(file => file.endsWith('.js'));
-            for (const file of subFiles) {
-                const filePath = path.join(itemPath, file);
-                const command = require(filePath);
-                if ('data' in command && 'execute' in command) {
-                    client.commands.set(command.data.name, command);
-                    commandsArray.push(command.data.toJSON());
-                }
-            }
+            loadCommands(itemPath);
         } else if (item.endsWith('.js')) {
+            delete require.cache[require.resolve(itemPath)];
             const command = require(itemPath);
             if ('data' in command && 'execute' in command) {
                 client.commands.set(command.data.name, command);
                 commandsArray.push(command.data.toJSON());
+                console.log(`✅ Loaded Command: /${command.data.name}`);
+            } else {
+                console.log(`⚠️ Skip File: ${item} (ไม่มี data หรือ execute)`);
             }
         }
     }
 }
+
+loadCommands(commandsPath);
 
 // =========================================================
 // EVENTS LOADER
@@ -108,15 +108,17 @@ if (fs.existsSync(eventsPath)) {
 client.once(Events.ClientReady, async () => {
     console.log(`✅ Logged in as ${client.user.tag}!`);
 
-    // --- REGISTER SLASH COMMANDS ---
+    // --- REGISTER SLASH COMMANDS (ลงทะเบียนอัตโนมัติ) ---
     try {
         console.log(`🔄 กำลังลงทะเบียนคำสั่ง ${commandsArray.length} คำสั่ง...`);
         const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
+
+        // ดึง Client ID จาก client.user.id อัตโนมัติ เพื่อรองรับ Global Slash Commands
         await rest.put(
-            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+            Routes.applicationCommands(client.user.id),
             { body: commandsArray }
         );
-        console.log('✅ ลงทะเบียนคำสั่งสำเร็จเรียบร้อย!');
+        console.log('✅ ลงทะเบียนคำสั่ง Slash Commands สำเร็จเรียบร้อย!');
     } catch (error) {
         console.error('❌ เกิดข้อผิดพลาดในการลงทะเบียนคำสั่ง:', error);
     }
