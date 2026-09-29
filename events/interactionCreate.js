@@ -22,9 +22,11 @@ module.exports = {
     async execute(interaction) {
 
         // =========================================================
-        // 1. SLASH COMMAND (/setup)
+        // 1. SLASH COMMANDS (เช่น /setup, /checkvac)
         // =========================================================
         if (interaction.isChatInputCommand()) {
+
+            // --- 1.1 คำสั่ง /setup ---
             if (interaction.commandName === 'setup') {
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                     return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', ephemeral: true });
@@ -97,8 +99,21 @@ module.exports = {
                 return await interaction.reply({ content: '✅ อัปเดตห้องลงทะเบียนเรียบร้อยแล้ว', ephemeral: true });
             }
 
+            // --- 1.2 คำสั่งอื่นๆ จากโฟลเดอร์ commands (เช่น /checkvac) ---
             const command = interaction.client.commands?.get(interaction.commandName);
-            if (command) await command.execute(interaction);
+            if (command) {
+                try {
+                    await command.execute(interaction);
+                } catch (error) {
+                    console.error(`❌ เกิดข้อผิดพลาดในคำสั่ง ${interaction.commandName}:`, error);
+                    const errorMsg = { content: '❌ เกิดข้อผิดพลาดขณะรันคำสั่งนี้!', ephemeral: true };
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp(errorMsg);
+                    } else {
+                        await interaction.reply(errorMsg);
+                    }
+                }
+            }
             return;
         }
 
@@ -156,7 +171,7 @@ module.exports = {
         }
 
         // =========================================================
-        // 3. MODAL SUBMIT (ประมวลผลข้อมูล)
+        // 3. MODAL SUBMIT (ประมวลผลข้อมูลลงทะเบียน)
         // =========================================================
         if (interaction.isModalSubmit()) {
 
@@ -221,7 +236,7 @@ module.exports = {
             }
 
             // -----------------------------------------------------
-            // 3.2 ยศถาวร (ตรวจ Steam ID64 + VAC Ban)
+            // 3.2 ยศถาวร (ตรวจ Steam ID64 + VAC Ban + ระบุเกมที่ถูกแบน)
             // -----------------------------------------------------
             if (interaction.customId.startsWith('modal_perm_role_')) {
                 await interaction.deferReply({ ephemeral: true });
@@ -237,23 +252,43 @@ module.exports = {
                 const member = interaction.member;
                 const guild = interaction.guild;
 
-                // ตรวจ VAC
+                // ตรวจสอบ VAC และ Game Ban
                 const apiKey = process.env.STEAM_API_KEY;
-                let vacStatus = '🟢 ไม่พบ VAC Ban';
+                let vacStatus = '🟢 ไม่พบ VAC / Game Ban';
                 let vacBansCount = 0;
                 let gameBansCount = 0;
+                let daysSinceLastBan = 0;
+                let bannedGamesList = [];
 
                 if (apiKey) {
                     try {
-                        const fetch = (await import('node-fetch')).default;
                         const res = await fetch(`https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=${apiKey}&steamids=${steamId}`);
                         const data = await res.json();
+                        
                         if (data?.players?.length > 0) {
                             const player = data.players[0];
                             vacBansCount = player.NumberOfVACBans || 0;
                             gameBansCount = player.NumberOfGameBans || 0;
+                            daysSinceLastBan = player.DaysSinceLastBan || 0;
+
                             if (vacBansCount > 0 || gameBansCount > 0) {
-                                vacStatus = '🔴 พบประวัติแบน (VAC / Game Ban)';
+                                vacStatus = `🔴 พบประวัติแบน (${daysSinceLastBan} วันที่แล้ว)`;
+
+                                // ดึงหน้าโปรไฟล์เพื่อสแกนรายชื่อเกมที่ถูกแบน
+                                try {
+                                    const profileRes = await fetch(`https://steamcommunity.com/profiles/${steamId}?l=english`, {
+                                        headers: { 'User-Agent': 'Mozilla/5.0' }
+                                    });
+                                    const htmlText = await profileRes.text();
+
+                                    const banBlockMatch = htmlText.match(/class="ban_info"[\s\S]*?<\/div>/i);
+                                    if (banBlockMatch) {
+                                        const gameMatches = [...banBlockMatch[0].matchAll(/on record for ([^<.]+)/gi)];
+                                        bannedGamesList = gameMatches.map(m => m[1].trim());
+                                    }
+                                } catch (scrapeErr) {
+                                    console.error('❌ Error fetching Steam profile page:', scrapeErr);
+                                }
                             }
                         }
                     } catch (e) {
@@ -276,7 +311,12 @@ module.exports = {
                 const now = new Date();
                 const formattedDate = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', { hour12: false });
 
-                // LOG 1
+                // จัดรูปแบบข้อความแสดงชื่อเกมที่โดนแบน
+                const bannedGamesText = bannedGamesList.length > 0 
+                    ? bannedGamesList.join(', ') 
+                    : (vacBansCount > 0 || gameBansCount > 0 ? 'โปรไฟล์ตั้งค่าความเป็นส่วนตัวไว้ (ไม่สามารถดึงชื่อเกมได้)' : 'ไม่มี');
+
+                // LOG 1 (ห้องตรวจสอบ VAC)
                 const logChannel1 = guild.channels.cache.get('1538429606409928815');
                 if (logChannel1) {
                     await logChannel1.send(
@@ -290,13 +330,14 @@ module.exports = {
                         `- สถานะ VAC: ${vacStatus}\n` +
                         `- จำนวน VAC Ban: ${vacBansCount}\n` +
                         `- จำนวน Game Ban: ${gameBansCount}\n` +
+                        `- เกมที่ถูกแบน: ${bannedGamesText}\n` +
                         `- ยศถาวรที่ได้รับ: ${targetRole.name}\n` +
                         `- เวลา: ${formattedDate}\n` +
                         '```'
                     );
                 }
 
-                // LOG 2
+                // LOG 2 (ห้องบันทึกประวัติการรับยศ)
                 const logChannel2 = guild.channels.cache.get('1494379391327928370');
                 if (logChannel2) {
                     await logChannel2.send(
