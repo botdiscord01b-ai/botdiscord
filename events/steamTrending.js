@@ -1,54 +1,54 @@
 const { Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const axios = require('axios');
 const cron = require('node-cron');
 
-// ID ห้องสำหรับส่งข่าวสารเกม Steam
 const STEAM_CHANNEL_ID = '1554496562128883742';
 
-// ชุดข้อมูลเก็บ AppID เกมที่เคยแจ้งเตือนไปแล้ว (ป้องกันการส่งซ้ำ)
+// ความจำเก็บ AppID เกมที่เคยสแกนแล้ว
 const notifiedGames = new Set();
+let isFirstRun = true; // ตัวแปรเช็กการทำงานครั้งแรก
 
-/**
- * ดึงข้อมูลเกมมาใหม่และฮิตติดท็อปจาก Steam Storefront API
- */
 async function fetchSteamTrending() {
     try {
-        // ดึงข้อมูลภาษาไทย / สกุลเงินบาท (cc=th&l=thai)
-        const response = await axios.get('https://store.steampowered.com/api/featuredcategories?cc=th&l=thai', {
-            timeout: 10000
-        });
-        
-        // ดึงรายการเกมมาใหม่และติดอันดับ (new_releases หรือ top_sellers)
-        const items = response.data.new_releases?.items || [];
-        return items;
+        const response = await fetch('https://store.steampowered.com/api/featuredcategories?cc=th&l=thai');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        return data.new_releases?.items || [];
     } catch (error) {
         console.error('❌ [Steam API Error]:', error.message);
         return [];
     }
 }
 
-/**
- * ฟังก์ชันสร้างและส่ง Embed การ์ดเกมไปยัง Discord
- */
 async function checkAndAnnounceSteamGames(client) {
     try {
         const channel = await client.channels.fetch(STEAM_CHANNEL_ID).catch(() => null);
-        if (!channel || !channel.isTextBased()) {
-            console.error(`❌ [Steam Module] ไม่พบห้อง ID: ${STEAM_CHANNEL_ID}`);
-            return;
-        }
+        if (!channel || !channel.isTextBased()) return;
 
         const games = await fetchSteamTrending();
         if (!games.length) return;
 
-        // ดึงเฉพาะ 5 เกมแรกที่เป็นรายการใหม่
+        // 🛑 ถ้าเป็นการรันครั้งแรกสุดหลังเปิดบอท:
+        // ให้จดบันทึก AppID เกมทั้งหมดในปัจจุบันไว้ก่อน แต่ยังไม่ส่งลง Discord เพื่อป้องกันบอทรัวข้อความ
+        if (isFirstRun) {
+            for (const game of games) {
+                notifiedGames.add(game.id);
+            }
+            isFirstRun = false;
+            console.log(`✅ [Steam Tracker] โหลดรายการเกมเริ่มต้นเรียบร้อยแล้ว (${notifiedGames.size} รายการ) จะแจ้งเตือนเฉพาะเกมที่มาใหม่หลังจากนี้เท่านั้น`);
+            return;
+        }
+
+        // 🔔 สำหรับการตรวจเช็กครั้งต่อๆ ไป (ส่งเฉพาะเกมที่เพิ่งติดอันดับเข้ามาใหม่จริงๆ)
+        let sendCount = 0;
+        const MAX_SEND_PER_CHECK = 3; // จำกัดการส่งไม่เกิน 3 เกมต่อรอบป้องกัน Spam
+
         for (const game of games) {
             if (notifiedGames.has(game.id)) continue;
 
             // บันทึกว่าส่งแล้ว
             notifiedGames.add(game.id);
+            sendCount++;
 
-            // จัดการเรื่องราคาและส่วนลด
             let priceText = '🆓 เล่นฟรี / ยังไม่ระบุ';
             let discountBadge = '';
 
@@ -71,9 +71,8 @@ async function checkAndAnnounceSteamGames(client) {
             const steamStoreUrl = `https://store.steampowered.com/app/${game.id}`;
             const headerImageUrl = game.large_capsule_image || game.header_image;
 
-            // 🎨 สร้าง Embed แสดงผลการ์ดเกมแบบพรีเมียม
             const embed = new EmbedBuilder()
-                .setColor(0x1b2838) // สีธีมหลัก Steam Dark Blue
+                .setColor(0x1b2838)
                 .setAuthor({
                     name: 'STEAM STORE • NEW & TRENDING',
                     iconURL: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/768px-Steam_icon_logo.svg.png'
@@ -81,29 +80,16 @@ async function checkAndAnnounceSteamGames(client) {
                 .setTitle(`🎮 ${game.name}`)
                 .setURL(steamStoreUrl)
                 .setDescription(
-                    `✨ **เกมมาใหม่กำลังฮิตติดชาร์ตบน Steam!**\n` +
-                    `อย่าวัดดวงกับเกมเก่าน่าเบื่อ ลองเช็กรายละเอียดเกมใหม่ล่าสุดนี้ได้เลย${discountBadge}`
+                    `✨ **มีเกมมาใหม่กำลังฮิตติดชาร์ตบน Steam!**${discountBadge}`
                 )
                 .addFields(
-                    { 
-                        name: '💰 ราคาปัจจุบัน', 
-                        value: priceText, 
-                        inline: true 
-                    },
-                    { 
-                        name: '🌟 หมวดหมู่ / แพลตฟอร์ม', 
-                        value: game.streaming_video ? '🎥 วิดีโอ/สื่อ' : '💻 PC (Windows / Steam)', 
-                        inline: true 
-                    }
+                    { name: '💰 ราคาปัจจุบัน', value: priceText, inline: true },
+                    { name: '🌟 แพลตฟอร์ม', value: '💻 PC (Steam)', inline: true }
                 )
                 .setImage(headerImageUrl)
                 .setTimestamp()
-                .setFooter({ 
-                    text: 'Steam Live Tracker • MasaruBot', 
-                    iconURL: client.user.displayAvatarURL() 
-                });
+                .setFooter({ text: 'Steam Live Tracker • MasaruBot', iconURL: client.user.displayAvatarURL() });
 
-            // 🔘 ปุ่มกดสำหรับเข้าดูบน Steam และดูคะแนนรีวิว
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setLabel('เปิดดูหน้าสโตร์ Steam')
@@ -118,9 +104,10 @@ async function checkAndAnnounceSteamGames(client) {
             );
 
             await channel.send({ embeds: [embed], components: [row] });
-            
-            // ชะลอเวลาส่งทีละนิดเพื่อป้องกัน Rate Limit ของ Discord
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 3000)); // เว้นระยะห่างส่งข้อความละ 3 วินาที
+
+            // ถ้าส่งครบจำนวนจำกัดแล้วให้หยุดรอบนี้ก่อน
+            if (sendCount >= MAX_SEND_PER_CHECK) break;
         }
     } catch (error) {
         console.error('❌ [Steam Module Error]:', error);
@@ -132,12 +119,12 @@ module.exports = {
     once: true,
     execute(client) {
         console.log('🎮 [Steam Tracker] ระบบติดตามเกมมาใหม่ Steam พร้อมทำงานแล้ว!');
-
-        // รันเช็กครั้งแรกทันทีที่เปิดบอท
+        
+        // เช็กครั้งแรกเพื่อบันทึกฐานข้อมูลเกมปัจจุบันก่อน (จะไม่เพิ่งส่ง)
         checkAndAnnounceSteamGames(client);
 
-        // ตั้งเวลาอัปเดตอัตโนมัติทุกๆ 1 ชั่วโมง (ปรับแต่งได้ตามต้องการ)
-        cron.schedule('0 * * * *', () => {
+        // ตั้งเวลารันตรวจเช็กเกมใหม่ทุกๆ 2 ชั่วโมง ('0 */2 * * *')
+        cron.schedule('0 */2 * * *', () => {
             console.log('🔄 [Steam Tracker] กำลังตรวจสอบเกม Steam มาใหม่...');
             checkAndAnnounceSteamGames(client);
         });
