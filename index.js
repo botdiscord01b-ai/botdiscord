@@ -1,5 +1,7 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, REST, Routes } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
 // 1. สร้างตัวแปร client พร้อมกำหนด Intents
 const client = new Client({
@@ -18,13 +20,12 @@ const lastActivity = new Map();
 const INACTIVE_LIMIT_MS = 30 * 24 * 60 * 60 * 1000; // 30 วัน
 const EXCLUDED_ROLE_IDS = ['1550062346435567657']; // ยศที่ไม่ถูกถอด
 
-// 3. บันทึกเมื่อมีการพิมพ์ข้อความ
+// 3. บันทึกกิจกรรม
 client.on('messageCreate', (message) => {
     if (message.author.bot || !message.guild) return;
     lastActivity.set(message.author.id, Date.now());
 });
 
-// 4. บันทึกเมื่อมีการเข้าห้องเสียง
 client.on('voiceStateUpdate', (oldState, newState) => {
     const member = newState.member;
     if (!member || member.user.bot) return;
@@ -33,11 +34,49 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     }
 });
 
-// 5. เมื่อบอทพร้อมใช้งาน ให้เริ่ม Loop ตรวจเช็คคนไม่ออกเสียง/ไม่พิมพ์ 30 วัน
-client.once('ready', () => {
+// 4. ฟังก์ชันลงทะเบียน Slash Commands อัตโนมัติ
+async function deployCommands(clientId, token) {
+    const commands = [];
+    const foldersPath = path.join(__dirname, 'commands');
+
+    if (fs.existsSync(foldersPath)) {
+        const commandItems = fs.readdirSync(foldersPath);
+        for (const item of commandItems) {
+            const itemPath = path.join(foldersPath, item);
+            if (fs.lstatSync(itemPath).isDirectory()) {
+                const commandFiles = fs.readdirSync(itemPath).filter(file => file.endsWith('.js'));
+                for (const file of commandFiles) {
+                    const filePath = path.join(itemPath, file);
+                    const command = require(filePath);
+                    if ('data' in command) commands.push(command.data.toJSON());
+                }
+            } else if (item.endsWith('.js')) {
+                const command = require(itemPath);
+                if ('data' in command) commands.push(command.data.toJSON());
+            }
+        }
+    }
+
+    if (commands.length > 0 && token && clientId) {
+        const rest = new REST({ version: '10' }).setToken(token);
+        try {
+            console.log(`🔄 กำลังลงทะเบียนคำสั่ง Slash Commands อัตโนมัติ (${commands.length} คำสั่ง)...`);
+            await rest.put(Routes.applicationCommands(clientId), { body: commands });
+            console.log('✅ ลงทะเบียนคำสั่ง Slash Commands เรียบร้อยแล้ว!');
+        } catch (error) {
+            console.error('❌ เกิดข้อผิดพลาดในการลงทะเบียนคำสั่ง:', error);
+        }
+    }
+}
+
+// 5. เมื่อบอทพร้อมใช้งาน
+client.once('ready', async () => {
     console.log(`🤖 บอทออนไลน์แล้วในชื่อ: ${client.user.tag}`);
 
-    // รันตรวจเช็คทุกๆ 24 ชั่วโมง
+    // สั่งรันลงทะเบียนคำสั่งอัตโนมัติตอนบอทติด
+    await deployCommands(client.user.id, process.env.DISCORD_TOKEN);
+
+    // รันตรวจเช็ค Inactive ทุกๆ 24 ชั่วโมง
     setInterval(async () => {
         try {
             const guild = client.guilds.cache.first();
@@ -50,7 +89,6 @@ client.once('ready', () => {
             for (const [id, member] of members) {
                 if (member.user.bot) continue;
 
-                // ข้ามยศที่ยกเว้น
                 const isExcluded = member.roles.cache.some(role => EXCLUDED_ROLE_IDS.includes(role.id));
                 if (isExcluded) continue;
 
@@ -67,7 +105,7 @@ client.once('ready', () => {
                             const formattedDate = new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH', { hour12: false });
                             await logChannel.send(
                                 '```md\n' +
-                                `# ⚠️️ ถอดยศเนื่องจากไม่มีความเคลื่อนไหว (30 วัน)\n` +
+                                `# ⚠ ถอดยศเนื่องจากไม่มีความเคลื่อนไหว (30 วัน)\n` +
                                 `- สมาชิก: ${member.user.tag} (${member.id})\n` +
                                 `- ชื่อในดิสคอร์ด: ${member.displayName}\n` +
                                 `- ยศที่ถูกถอด: ${rolesToRemove.map(r => r.name).join(', ')}\n` +
@@ -84,9 +122,9 @@ client.once('ready', () => {
     }, 24 * 60 * 60 * 1000);
 });
 
-// 6. เรียกใช้งาน Event Interaction จากไฟล์ events/interactionCreate.js
+// 6. เรียกใช้งาน Event Interaction
 const interactionEvent = require('./events/interactionCreate.js');
 client.on(interactionEvent.name, (...args) => interactionEvent.execute(...args));
 
-// 7. ล็อกอินเข้าใช้งานบอท
+// 7. ล็อกอิน
 client.login(process.env.DISCORD_TOKEN);
