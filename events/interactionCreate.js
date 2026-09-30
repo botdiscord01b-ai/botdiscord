@@ -8,94 +8,19 @@ const {
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
     EmbedBuilder,
-    AttachmentBuilder
+    AttachmentBuilder,
+    MessageFlags
 } = require('discord.js');
 
 const path = require('path');
 
 const TEMP_ROLE_ID = '1550062346435567657';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const INACTIVE_LIMIT_MS = 30 * 24 * 60 * 60 * 1000; // 30 วัน (มิลลิวินาที)
-
-// Map สำหรับเก็บบันทึกเวลาทำกิจกรรมล่าสุดของสมาชิก (UserId -> Timestamp)
-const lastActivityMap = new Map();
-
-// ตัวแปรเช็คสถานะการตั้ง Cron/Interval
-let isCheckLoopStarted = false;
 
 module.exports = {
     name: Events.InteractionCreate,
 
     async execute(interaction) {
-
-        // =========================================================
-        // 0. START INACTIVE CHECKER LOOP (รันระบบเช็ค 30 วัน เมื่อเริ่มใช้งาน)
-        // =========================================================
-        if (!isCheckLoopStarted && interaction.client) {
-            isCheckLoopStarted = true;
-            const client = interaction.client;
-
-            // บันทึกกิจกรรมจากการพิมพ์ข้อความ
-            client.on('messageCreate', (message) => {
-                if (message.author.bot || !message.guild) return;
-                lastActivityMap.set(message.author.id, Date.now());
-            });
-
-            // บันทึกกิจกรรมจากการเข้าห้องเสียง
-            client.on('voiceStateUpdate', (oldState, newState) => {
-                const member = newState.member;
-                if (!member || member.user.bot) return;
-                if (newState.channelId) {
-                    lastActivityMap.set(member.id, Date.now());
-                }
-            });
-
-            // ตั้งระบบตรวจเช็คอัตโนมัติทุกๆ 24 ชั่วโมง
-            setInterval(async () => {
-                try {
-                    const guild = client.guilds.cache.first();
-                    if (!guild) return;
-
-                    const members = await guild.members.fetch();
-                    const now = Date.now();
-                    const logChannel = guild.channels.cache.get('1538429606409928815');
-
-                    for (const [id, member] of members) {
-                        if (member.user.bot) continue;
-
-                        // ยกเว้นยศแอดมินหรือยศที่ต้องการระบุ
-                        const EXCLUDED_ROLE_IDS = ['1550062346435567657'];
-                        if (member.roles.cache.some(r => EXCLUDED_ROLE_IDS.includes(r.id))) continue;
-
-                        const lastActiveTime = lastActivityMap.get(id) || member.joinedTimestamp;
-
-                        if (now - lastActiveTime > INACTIVE_LIMIT_MS) {
-                            const rolesToRemove = member.roles.cache.filter(r => r.id !== guild.id);
-
-                            if (rolesToRemove.size > 0) {
-                                await member.roles.remove(rolesToRemove);
-                                console.log(`🧹 ถอดยศจาก ${member.user.tag} เนื่องจากไม่แอกทีฟเกิน 30 วัน`);
-
-                                if (logChannel) {
-                                    const formattedDate = new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH', { hour12: false });
-                                    await logChannel.send(
-                                        '```md\n' +
-                                        `# ⚠️ ถอดยศเนื่องจากไม่มีความเคลื่อนไหว (30 วัน)\n` +
-                                        `- สมาชิก: ${member.user.tag} (${member.id})\n` +
-                                        `- ชื่อในดิสคอร์ด: ${member.displayName}\n` +
-                                        `- ยศที่ถูกถอด: ${rolesToRemove.map(r => r.name).join(', ')}\n` +
-                                        `- เวลา: ${formattedDate}\n` +
-                                        '```'
-                                    );
-                                }
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.error('❌ เกิดข้อผิดพลาดในระบบตรวจเช็คสมาชิกไม่ออกเสียง 30 วัน:', err);
-                }
-            }, 24 * 60 * 60 * 1000);
-        }
 
         // =========================================================
         // 1. SLASH COMMANDS (เช่น /setup, /checkvac)
@@ -105,13 +30,16 @@ module.exports = {
             // --- 1.1 คำสั่ง /setup ---
             if (interaction.commandName === 'setup') {
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                    return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', ephemeral: true });
+                    return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', flags: MessageFlags.Ephemeral });
                 }
 
                 const targetChannelId = '1486030638464237631';
                 if (interaction.channelId !== targetChannelId) {
-                    return await interaction.reply({ content: `❌ คำสั่งนี้ใช้ได้เฉพาะในห้อง <#${targetChannelId}> เท่านั้น`, ephemeral: true });
+                    return await interaction.reply({ content: `❌ คำสั่งนี้ใช้ได้เฉพาะในห้อง <#${targetChannelId}> เท่านั้น`, flags: MessageFlags.Ephemeral });
                 }
+
+                // ป้องกัน Discord Timeout (Unknown Interaction) โดยการเลื่อนตอบกลับทันที
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 const guild = interaction.guild;
                 const roleIds = ['1356148472851726437', '1538468356049477664', '1462774552726606017'];
@@ -156,7 +84,7 @@ module.exports = {
                         'ยินดีต้อนรับเข้าสู่ระบบลงทะเบียนรับยศ\n\n' +
                         '🔰 **ข้อแตกต่างประเภทการรับยศ:**\n' +
                         '▪️ **ยศถาวร:** ต้องกรอกชื่อดิสคอร์ด + Steam ID64 (ตรวจ VAC Ban)\n' +
-                        '▪️ **ยศชั่วคราว (1 วัน):** กรอกเฉพาะชื่อดิสคอร์ด (ไม่ต้องกรอก Steam ID)\n\n' +
+                        '▪️️ **ยศชั่วคราว (1 วัน):** กรอกเฉพาะชื่อดิสคอร์ด (ไม่ต้องกรอก Steam ID)\n\n' +
                         '⚠️ **เงื่อนไขการรักษายศ (การถอดยศอัตโนมัติ):**\n' +
                         '• สมาชิกที่ไม่เข้าห้องเสียง หรือไม่พิมพ์ข้อความใดๆ ในเซิร์ฟเวอร์**เกิน 30 วัน** จะถูกถอดยศออกทั้งหมดโดยอัตโนมัติ\n\n' +
                         '🎮 **วิธีใช้งาน:** เลือกยศที่ต้องการจากเมนูด้านล่างแล้วกรอกข้อมูลตามที่ระบบร้องขอ'
@@ -174,7 +102,7 @@ module.exports = {
                     console.error('❌ Error setup channel:', error);
                 }
 
-                return await interaction.reply({ content: '✅ อัปเดตห้องลงทะเบียนเรียบร้อยแล้ว', ephemeral: true });
+                return await interaction.editReply({ content: '✅ อัปเดตห้องลงทะเบียนเรียบร้อยแล้ว' });
             }
 
             // --- 1.2 คำสั่งอื่นๆ จากโฟลเดอร์ commands ---
@@ -184,7 +112,7 @@ module.exports = {
                     await command.execute(interaction);
                 } catch (error) {
                     console.error(`❌ เกิดข้อผิดพลาดในคำสั่ง ${interaction.commandName}:`, error);
-                    const errorMsg = { content: '❌ เกิดข้อผิดพลาดขณะรันคำสั่งนี้!', ephemeral: true };
+                    const errorMsg = { content: '❌ เกิดข้อผิดพลาดขณะรันคำสั่งนี้!', flags: MessageFlags.Ephemeral };
                     if (interaction.replied || interaction.deferred) {
                         await interaction.followUp(errorMsg);
                     } else {
@@ -253,7 +181,7 @@ module.exports = {
 
             // --- 3.1 ยศชั่วคราว ---
             if (interaction.customId === 'modal_temp_role') {
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 const newNickname = interaction.fields.getTextInputValue('modal_nickname');
                 const member = interaction.member;
@@ -268,7 +196,6 @@ module.exports = {
                 try { await member.setNickname(newNickname); } catch (e) { nickChanged = false; }
 
                 await member.roles.add(tempRole.id);
-                lastActivityMap.set(member.id, Date.now()); // บันทึกกิจกรรมตอนลงทะเบียน
 
                 setTimeout(async () => {
                     try {
@@ -308,7 +235,7 @@ module.exports = {
 
             // --- 3.2 ยศถาวร ---
             if (interaction.customId.startsWith('modal_perm_role_')) {
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 const roleId = interaction.customId.replace('modal_perm_role_', '');
                 const newNickname = interaction.fields.getTextInputValue('modal_nickname');
@@ -372,7 +299,6 @@ module.exports = {
                 try { await member.setNickname(newNickname); } catch (e) { nickChanged = false; }
 
                 await member.roles.add(targetRole.id);
-                lastActivityMap.set(member.id, Date.now()); // บันทึกกิจกรรมตอนลงทะเบียน
 
                 const now = new Date();
                 const formattedDate = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', { hour12: false });
