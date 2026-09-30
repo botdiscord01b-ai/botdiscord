@@ -15,6 +15,7 @@ const {
 const path = require('path');
 
 const TEMP_ROLE_ID = '1550062346435567657';
+const EXEMPT_ROLE_ID = '1527270612291158077'; // ยศยกเว้นการถอดยศ
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 module.exports = {
@@ -38,7 +39,6 @@ module.exports = {
                     return await interaction.reply({ content: `❌ คำสั่งนี้ใช้ได้เฉพาะในห้อง <#${targetChannelId}> เท่านั้น`, flags: MessageFlags.Ephemeral });
                 }
 
-                // ป้องกัน Discord Timeout (Unknown Interaction) โดยการเลื่อนตอบกลับทันที
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 const guild = interaction.guild;
@@ -84,9 +84,10 @@ module.exports = {
                         'ยินดีต้อนรับเข้าสู่ระบบลงทะเบียนรับยศ\n\n' +
                         '🔰 **ข้อแตกต่างประเภทการรับยศ:**\n' +
                         '▪️ **ยศถาวร:** ต้องกรอกชื่อดิสคอร์ด + Steam ID64 (ตรวจ VAC Ban)\n' +
-                        '▪️️ **ยศชั่วคราว (1 วัน):** กรอกเฉพาะชื่อดิสคอร์ด (ไม่ต้องกรอก Steam ID)\n\n' +
+                        '▪ **ยศชั่วคราว (1 วัน):** กรอกเฉพาะชื่อดิสคอร์ด (ไม่ต้องกรอก Steam ID)\n\n' +
                         '⚠️ **เงื่อนไขการรักษายศ (การถอดยศอัตโนมัติ):**\n' +
-                        '• สมาชิกที่ไม่เข้าห้องเสียง หรือไม่พิมพ์ข้อความใดๆ ในเซิร์ฟเวอร์**เกิน 30 วัน** จะถูกถอดยศออกทั้งหมดโดยอัตโนมัติ\n\n' +
+                        '• สมาชิกที่ไม่เข้าห้องเสียง หรือไม่พิมพ์ข้อความใดๆ ในเซิร์ฟเวอร์**เกิน 30 วัน** จะถูกถอดยศออกทั้งหมดโดยอัตโนมัติ\n' +
+                        '• (ยกเว้นผู้ที่มีบทบาทพิเศษ จะไม่ถูกถอดยศอัตโนมัติ)\n\n' +
                         '🎮 **วิธีใช้งาน:** เลือกยศที่ต้องการจากเมนูด้านล่างแล้วกรอกข้อมูลตามที่ระบบร้องขอ'
                     )
                     .setImage('attachment://register.png')
@@ -105,7 +106,6 @@ module.exports = {
                 return await interaction.editReply({ content: '✅ อัปเดตห้องลงทะเบียนเรียบร้อยแล้ว' });
             }
 
-            // --- 1.2 คำสั่งอื่นๆ จากโฟลเดอร์ commands ---
             const command = interaction.client.commands?.get(interaction.commandName);
             if (command) {
                 try {
@@ -197,10 +197,17 @@ module.exports = {
 
                 await member.roles.add(tempRole.id);
 
+                // ตั้งเวลาถอด 24 ชม. แต่เพิ่มเงื่อนไขเช็คว่าถ้ามีสิทธิ์ยกเว้น (EXEMPT_ROLE_ID) จะไม่ถอด
                 setTimeout(async () => {
                     try {
                         const updatedMember = await guild.members.fetch(member.id).catch(() => null);
                         if (updatedMember && updatedMember.roles.cache.has(TEMP_ROLE_ID)) {
+                            // เช็คว่ามี Role ยกเว้นหรือไม่
+                            if (updatedMember.roles.cache.has(EXEMPT_ROLE_ID)) {
+                                console.log(`🛡️ ยกเว้นการถอดยศชั่วคราวจาก ${updatedMember.user.tag} เนื่องจากมีบอส/ยศยกเว้น`);
+                                return;
+                            }
+
                             await updatedMember.roles.remove(TEMP_ROLE_ID);
                             console.log(`⏰ ถอดยศชั่วคราวจาก ${updatedMember.user.tag} เรียบร้อยแล้ว (ครบ 24 ชม.)`);
                         }
@@ -220,7 +227,7 @@ module.exports = {
                         `- Username: ${member.user.username}\n` +
                         `- User ID: ${member.id}\n` +
                         `- ยศที่ได้รับ: ${tempRole.name}\n` +
-                        `- หมดอายุใน: 24 ชั่วโมง\n` +
+                        `- หมดอายุใน: 24 ชั่วโมง (ยกเว้นมีบทบาทพิเศษ)\n` +
                         `- เวลา: ${formattedDate}\n` +
                         '```'
                     );
@@ -228,7 +235,7 @@ module.exports = {
 
                 let replyText = `✅ **รับยศชั่วคราวสำเร็จ!**\n`;
                 replyText += nickChanged ? `- เปลี่ยนชื่อเป็น: **${newNickname}**\n` : `- เปลี่ยนชื่อ: *(สิทธิ์ของคุณสูงกว่าบอท)*\n`;
-                replyText += `- ได้รับยศ: **${tempRole.name}** *(จะถูกถอดออกอัตโนมัติใน 24 ชั่วโมง)*`;
+                replyText += `- ได้รับยศ: **${tempRole.name}** *(จะถูกถอดออกอัตโนมัติใน 24 ชั่วโมง เว้นแต่คุณมีบทบาทพิเศษ)*`;
 
                 return await interaction.editReply({ content: replyText });
             }
