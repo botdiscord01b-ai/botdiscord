@@ -1,7 +1,18 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, REST, Routes } = require('discord.js');
+const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+
+// เชื่อมต่อ MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => {
+    console.log('🟢 เชื่อมต่อฐานข้อมูล MongoDB สำเร็จแล้ว!');
+}).catch((err) => {
+    console.error('❌ ไม่สามารถเชื่อมต่อ MongoDB ได้:', err);
+});
 
 // 1. สร้างตัวแปร client พร้อมกำหนด Intents
 const client = new Client({
@@ -73,7 +84,6 @@ async function deployCommands(clientId, token) {
 client.once('ready', async () => {
     console.log(`🤖 บอทออนไลน์แล้วในชื่อ: ${client.user.tag}`);
 
-    // สั่งรันลงทะเบียนคำสั่งอัตโนมัติตอนบอทติด
     await deployCommands(client.user.id, process.env.DISCORD_TOKEN);
 
     // รันตรวจเช็ค Inactive ทุกๆ 24 ชั่วโมง
