@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, MessageFlags } = require('discord.js');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
@@ -25,6 +25,35 @@ const client = new Client({
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
+
+// เก็บ Collection สำหรับรวบรวมคำสั่ง
+client.commands = new Collection();
+
+// ฟังก์ชันโหลดคำสั่งจากโฟลเดอร์ commands
+function loadCommands() {
+    const foldersPath = path.join(__dirname, 'commands');
+    if (fs.existsSync(foldersPath)) {
+        const commandItems = fs.readdirSync(foldersPath);
+        for (const item of commandItems) {
+            const itemPath = path.join(foldersPath, item);
+            if (fs.lstatSync(itemPath).isDirectory()) {
+                const commandFiles = fs.readdirSync(itemPath).filter(file => file.endsWith('.js'));
+                for (const file of commandFiles) {
+                    const filePath = path.join(itemPath, file);
+                    const command = require(filePath);
+                    if ('data' in command && 'execute' in command) {
+                        client.commands.set(command.data.name, command);
+                    }
+                }
+            } else if (item.endsWith('.js')) {
+                const command = require(itemPath);
+                if ('data' in command && 'execute' in command) {
+                    client.commands.set(command.data.name, command);
+                }
+            }
+        }
+    }
+}
 
 // 2. เก็บเวลากิจกรรมล่าสุดของแต่ละสมาชิก (UserId -> Timestamp)
 const lastActivity = new Map();
@@ -84,6 +113,9 @@ async function deployCommands(clientId, token) {
 client.once('ready', async () => {
     console.log(`🤖 บอทออนไลน์แล้วในชื่อ: ${client.user.tag}`);
 
+    // โหลดคำสั่งเข้า client.commands
+    loadCommands();
+
     await deployCommands(client.user.id, process.env.DISCORD_TOKEN);
 
     // รันตรวจเช็ค Inactive ทุกๆ 24 ชั่วโมง
@@ -132,9 +164,28 @@ client.once('ready', async () => {
     }, 24 * 60 * 60 * 1000);
 });
 
-// 6. เรียกใช้งาน Event Interaction
-const interactionEvent = require('./events/interactionCreate.js');
-client.on(interactionEvent.name, (...args) => interactionEvent.execute(...args));
+// 6. ดักจับและรันคำสั่ง Slash Commands
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = client.commands.get(interaction.commandName);
+    if (!command) return;
+
+    try {
+        await command.execute(interaction);
+    } catch (error) {
+        console.error(`❌ เกิดข้อผิดพลาดในการรันคำสั่ง ${interaction.commandName}:`, error);
+        const errorMessage = { 
+            content: '❌ เกิดข้อผิดพลาดบางประการขณะรันคำสั่งนี้!', 
+            flags: MessageFlags.Ephemeral 
+        };
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp(errorMessage);
+        } else {
+            await interaction.reply(errorMessage);
+        }
+    }
+});
 
 // 7. ล็อกอิน
 client.login(process.env.DISCORD_TOKEN);
