@@ -4,8 +4,8 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
-// เชื่อมต่อ MongoDB
-mongoose.connect(process.env.MONGO_URI, {
+// เชื่อมต่อ MongoDB (ใช้ MONGODB_URI ให้ตรงกับค่าใน Railway Variables)
+mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 }).then(() => {
