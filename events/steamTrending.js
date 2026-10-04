@@ -3,8 +3,9 @@ const cron = require('node-cron');
 
 const STEAM_CHANNEL_ID = '1554496562128883742';
 
-// ความจำเก็บ AppID เกมที่เคยสแกนแล้ว
+// ความจำเก็บ AppID เกมที่เคยสแกนแล้ว (เก็บไม่เกิน 500 เกมล่าสุดเพื่อป้องกันแรมรั่ว)
 const notifiedGames = new Set();
+const MAX_STORED_GAMES = 500;
 let isFirstRun = true; // ตัวแปรเช็กการทำงานครั้งแรก
 
 async function fetchSteamTrending() {
@@ -27,8 +28,7 @@ async function checkAndAnnounceSteamGames(client) {
         const games = await fetchSteamTrending();
         if (!games.length) return;
 
-        // 🛑 ถ้าเป็นการรันครั้งแรกสุดหลังเปิดบอท:
-        // ให้จดบันทึก AppID เกมทั้งหมดในปัจจุบันไว้ก่อน แต่ยังไม่ส่งลง Discord เพื่อป้องกันบอทรัวข้อความ
+        // 🛑 ถ้าเป็นการรันครั้งแรกสุดหลังเปิดบอท
         if (isFirstRun) {
             for (const game of games) {
                 notifiedGames.add(game.id);
@@ -38,15 +38,20 @@ async function checkAndAnnounceSteamGames(client) {
             return;
         }
 
-        // 🔔 สำหรับการตรวจเช็กครั้งต่อๆ ไป (ส่งเฉพาะเกมที่เพิ่งติดอันดับเข้ามาใหม่จริงๆ)
+        // 🔔 ตรวจสอบเกมใหม่
         let sendCount = 0;
         const MAX_SEND_PER_CHECK = 3; // จำกัดการส่งไม่เกิน 3 เกมต่อรอบป้องกัน Spam
 
         for (const game of games) {
             if (notifiedGames.has(game.id)) continue;
 
-            // บันทึกว่าส่งแล้ว
+            // บันทึกว่าส่งแล้ว และควบคุมขนาด Set ไม่ให้โตเกินไป
             notifiedGames.add(game.id);
+            if (notifiedGames.size > MAX_STORED_GAMES) {
+                const firstItem = notifiedGames.values().next().value;
+                notifiedGames.delete(firstItem); // ลบตัวที่เก่าที่สุดออก
+            }
+            
             sendCount++;
 
             let priceText = '🆓 เล่นฟรี / ยังไม่ระบุ';
@@ -104,9 +109,8 @@ async function checkAndAnnounceSteamGames(client) {
             );
 
             await channel.send({ embeds: [embed], components: [row] });
-            await new Promise(resolve => setTimeout(resolve, 3000)); // เว้นระยะห่างส่งข้อความละ 3 วินาที
+            await new Promise(resolve => setTimeout(resolve, 3000)); // หน่วงเวลา 3 วินาที
 
-            // ถ้าส่งครบจำนวนจำกัดแล้วให้หยุดรอบนี้ก่อน
             if (sendCount >= MAX_SEND_PER_CHECK) break;
         }
     } catch (error) {
@@ -120,7 +124,7 @@ module.exports = {
     execute(client) {
         console.log('🎮 [Steam Tracker] ระบบติดตามเกมมาใหม่ Steam พร้อมทำงานแล้ว!');
         
-        // เช็กครั้งแรกเพื่อบันทึกฐานข้อมูลเกมปัจจุบันก่อน (จะไม่เพิ่งส่ง)
+        // เช็กครั้งแรกเพื่อบันทึกฐานข้อมูลเกมปัจจุบันก่อน
         checkAndAnnounceSteamGames(client);
 
         // ตั้งเวลารันตรวจเช็กเกมใหม่ทุกๆ 2 ชั่วโมง ('0 */2 * * *')
