@@ -1,191 +1,135 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, MessageFlags } = require('discord.js');
-const mongoose = require('mongoose');
-const fs = require('fs');
-const path = require('path');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const cron = require('node-cron');
+// ... โค้ดเชื่อมต่อ MongoDB หรือส่วนอื่นๆ ของคุณ ...
 
-// เชื่อมต่อ MongoDB (ใช้ MONGODB_URI ให้ตรงกับค่าใน Railway Variables)
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('🟢 เชื่อมต่อฐานข้อมูล MongoDB สำเร็จแล้ว!');
-}).catch((err) => {
-    console.error('❌ ไม่สามารถเชื่อมต่อ MongoDB ได้:', err);
-});
+const STEAM_CHANNEL_ID = '1554496562128883742';
+const notifiedGames = new Set();
+const MAX_STORED_GAMES = 500;
+let isFirstRun = true;
 
-// 1. สร้างตัวแปร client พร้อมกำหนด Intents
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildVoiceStates
-    ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
-});
-
-// เก็บ Collection สำหรับรวบรวมคำสั่ง
-client.commands = new Collection();
-
-// ฟังก์ชันโหลดคำสั่งจากโฟลเดอร์ commands
-function loadCommands() {
-    const foldersPath = path.join(__dirname, 'commands');
-    if (fs.existsSync(foldersPath)) {
-        const commandItems = fs.readdirSync(foldersPath);
-        for (const item of commandItems) {
-            const itemPath = path.join(foldersPath, item);
-            if (fs.lstatSync(itemPath).isDirectory()) {
-                const commandFiles = fs.readdirSync(itemPath).filter(file => file.endsWith('.js'));
-                for (const file of commandFiles) {
-                    const filePath = path.join(itemPath, file);
-                    const command = require(filePath);
-                    if ('data' in command && 'execute' in command) {
-                        client.commands.set(command.data.name, command);
-                    }
-                }
-            } else if (item.endsWith('.js')) {
-                const command = require(itemPath);
-                if ('data' in command && 'execute' in command) {
-                    client.commands.set(command.data.name, command);
-                }
-            }
-        }
-    }
-}
-
-// 2. เก็บเวลากิจกรรมล่าสุดของแต่ละสมาชิก (UserId -> Timestamp)
-const lastActivity = new Map();
-const INACTIVE_LIMIT_MS = 30 * 24 * 60 * 60 * 1000; // 30 วัน
-const EXCLUDED_ROLE_IDS = ['1550062346435567657']; // ยศที่ไม่ถูกถอด
-
-// 3. บันทึกกิจกรรม
-client.on('messageCreate', (message) => {
-    if (message.author.bot || !message.guild) return;
-    lastActivity.set(message.author.id, Date.now());
-});
-
-client.on('voiceStateUpdate', (oldState, newState) => {
-    const member = newState.member;
-    if (!member || member.user.bot) return;
-    if (newState.channelId) {
-        lastActivity.set(member.id, Date.now());
-    }
-});
-
-// 4. ฟังก์ชันลงทะเบียน Slash Commands อัตโนมัติ
-async function deployCommands(clientId, token) {
-    const commands = [];
-    const foldersPath = path.join(__dirname, 'commands');
-
-    if (fs.existsSync(foldersPath)) {
-        const commandItems = fs.readdirSync(foldersPath);
-        for (const item of commandItems) {
-            const itemPath = path.join(foldersPath, item);
-            if (fs.lstatSync(itemPath).isDirectory()) {
-                const commandFiles = fs.readdirSync(itemPath).filter(file => file.endsWith('.js'));
-                for (const file of commandFiles) {
-                    const filePath = path.join(itemPath, file);
-                    const command = require(filePath);
-                    if ('data' in command) commands.push(command.data.toJSON());
-                }
-            } else if (item.endsWith('.js')) {
-                const command = require(itemPath);
-                if ('data' in command) commands.push(command.data.toJSON());
-            }
-        }
-    }
-
-    if (commands.length > 0 && token && clientId) {
-        const rest = new REST({ version: '10' }).setToken(token);
-        try {
-            console.log(`🔄 กำลังลงทะเบียนคำสั่ง Slash Commands อัตโนมัติ (${commands.length} คำสั่ง)...`);
-            await rest.put(Routes.applicationCommands(clientId), { body: commands });
-            console.log('✅ ลงทะเบียนคำสั่ง Slash Commands เรียบร้อยแล้ว!');
-        } catch (error) {
-            console.error('❌ เกิดข้อผิดพลาดในการลงทะเบียนคำสั่ง:', error);
-        }
-    }
-}
-
-// 5. เมื่อบอทพร้อมใช้งาน
-client.once('ready', async () => {
-    console.log(`🤖 บอทออนไลน์แล้วในชื่อ: ${client.user.tag}`);
-
-    // โหลดคำสั่งเข้า client.commands
-    loadCommands();
-
-    await deployCommands(client.user.id, process.env.DISCORD_TOKEN);
-
-    // รันตรวจเช็ค Inactive ทุกๆ 24 ชั่วโมง
-    setInterval(async () => {
-        try {
-            const guild = client.guilds.cache.first();
-            if (!guild) return;
-
-            const members = await guild.members.fetch();
-            const now = Date.now();
-            const logChannel = guild.channels.cache.get('1538429606409928815');
-
-            for (const [id, member] of members) {
-                if (member.user.bot) continue;
-
-                const isExcluded = member.roles.cache.some(role => EXCLUDED_ROLE_IDS.includes(role.id));
-                if (isExcluded) continue;
-
-                const lastActiveTime = lastActivity.get(id) || member.joinedTimestamp;
-
-                if (now - lastActiveTime > INACTIVE_LIMIT_MS) {
-                    const rolesToRemove = member.roles.cache.filter(role => role.id !== guild.id);
-
-                    if (rolesToRemove.size > 0) {
-                        await member.roles.remove(rolesToRemove);
-                        console.log(`🧹 ถอดยศจาก ${member.user.tag} เนื่องจากไม่แอกทีฟนานเกิน 30 วัน`);
-
-                        if (logChannel) {
-                            const formattedDate = new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH', { hour12: false });
-                            await logChannel.send(
-                                '```md\n' +
-                                `# ⚠ ถอดยศเนื่องจากไม่มีความเคลื่อนไหว (30 วัน)\n` +
-                                `- สมาชิก: ${member.user.tag} (${member.id})\n` +
-                                `- ชื่อในดิสคอร์ด: ${member.displayName}\n` +
-                                `- ยศที่ถูกถอด: ${rolesToRemove.map(r => r.name).join(', ')}\n` +
-                                `- เวลา: ${formattedDate}\n` +
-                                '```'
-                            );
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('❌ เกิดข้อผิดพลาดในการตรวจเช็คผู้ใช้ที่ไม่แอกทีฟ:', error);
-        }
-    }, 24 * 60 * 60 * 1000);
-});
-
-// 6. ดักจับและรันคำสั่ง Slash Commands
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-
+async function fetchSteamTrending() {
     try {
-        await command.execute(interaction);
+        const response = await fetch('https://store.steampowered.com/api/featuredcategories?cc=th&l=thai');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        return data.new_releases?.items || [];
     } catch (error) {
-        console.error(`❌ เกิดข้อผิดพลาดในการรันคำสั่ง ${interaction.commandName}:`, error);
-        const errorMessage = { 
-            content: '❌ เกิดข้อผิดพลาดบางประการขณะรันคำสั่งนี้!', 
-            flags: MessageFlags.Ephemeral 
-        };
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(errorMessage);
-        } else {
-            await interaction.reply(errorMessage);
-        }
+        console.error('❌ [Steam API Error]:', error.message);
+        return [];
     }
+}
+
+async function checkAndAnnounceSteamGames(client) {
+    try {
+        const channel = await client.channels.fetch(STEAM_CHANNEL_ID).catch(() => null);
+        if (!channel || !channel.isTextBased()) return;
+
+        const games = await fetchSteamTrending();
+        if (!games.length) return;
+
+        if (isFirstRun) {
+            for (const game of games) {
+                notifiedGames.add(game.id);
+            }
+            isFirstRun = false;
+            console.log(`✅ [Steam Tracker] โหลดรายการเกมเริ่มต้นเรียบร้อยแล้ว (${notifiedGames.size} รายการ)`);
+            return;
+        }
+
+        let sendCount = 0;
+        const MAX_SEND_PER_CHECK = 3;
+
+        for (const game of games) {
+            if (notifiedGames.has(game.id)) continue;
+
+            notifiedGames.add(game.id);
+            if (notifiedGames.size > MAX_STORED_GAMES) {
+                const firstItem = notifiedGames.values().next().value;
+                notifiedGames.delete(firstItem);
+            }
+            
+            sendCount++;
+
+            let priceText = '🆓 เล่นฟรี / ยังไม่ระบุ';
+            let discountBadge = '';
+
+            if (game.final_price !== undefined) {
+                if (game.final_price === 0) {
+                    priceText = '🆓 **เล่นฟรี (Free to Play)**';
+                } else {
+                    const originalPrice = game.original_price ? (game.original_price / 100).toLocaleString('th-TH') : null;
+                    const finalPrice = (game.final_price / 100).toLocaleString('th-TH');
+
+                    if (game.discount_percent > 0) {
+                        priceText = `~~${originalPrice} บาท~~ ➔ **${finalPrice} บาท**`;
+                        discountBadge = ` 🔥 **ลดราคา -${game.discount_percent}%**`;
+                    } else {
+                        priceText = `💵 **${finalPrice} บาท**`;
+                    }
+                }
+            }
+
+            const steamStoreUrl = `https://store.steampowered.com/app/${game.id}`;
+            const headerImageUrl = game.large_capsule_image || game.header_image;
+
+            const embed = new EmbedBuilder()
+                .setColor(0x1b2838)
+                .setAuthor({
+                    name: 'STEAM STORE • NEW & TRENDING',
+                    iconURL: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/768px-Steam_icon_logo.svg.png'
+                })
+                .setTitle(`🎮 ${game.name}`)
+                .setURL(steamStoreUrl)
+                .setDescription(`✨ **มีเกมมาใหม่กำลังฮิตติดชาร์ตบน Steam!**${discountBadge}`)
+                .addFields(
+                    { name: '💰 ราคาปัจจุบัน', value: priceText, inline: true },
+                    { name: '🌟 แพลตฟอร์ม', value: '💻 PC (Steam)', inline: true }
+                )
+                .setImage(headerImageUrl)
+                .setTimestamp()
+                .setFooter({ text: 'Steam Live Tracker • MasaruBot', iconURL: client.user.displayAvatarURL() });
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setLabel('เปิดดูหน้าสโตร์ Steam')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(steamStoreUrl)
+                    .setEmoji('🛒'),
+                new ButtonBuilder()
+                    .setLabel('ค้นหารีวิวบน YouTube')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(game.name + ' review')}`)
+                    .setEmoji('🔍')
+            );
+
+            await channel.send({ embeds: [embed], components: [row] });
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            if (sendCount >= MAX_SEND_PER_CHECK) break;
+        }
+    } catch (error) {
+        console.error('❌ [Steam Module Error]:', error);
+    }
+}
+
+// ================= Event หลักของบอท (รวมทุกอย่างไว้ที่นี่) =================
+client.once('ready', () => {
+    console.log(`🤖 Logged in as ${client.user.tag}!`);
+    console.log('🎮 [Steam Tracker] ระบบติดตามเกมมาใหม่ Steam พร้อมทำงานแล้ว!');
+
+    // รัน Steam Tracker ครั้งแรก
+    checkAndAnnounceSteamGames(client);
+
+    // ตั้งเวลา Cron job
+    cron.schedule('0 */2 * * *', () => {
+        console.log('🔄 [Steam Tracker] กำลังตรวจสอบเกม Steam มาใหม่...');
+        checkAndAnnounceSteamGames(client);
+    });
 });
 
-// 7. ล็อกอิน
-client.login(process.env.DISCORD_TOKEN);
+// Event อื่นๆ เช่น interactionCreate (สำหรับ Slash Commands) หรือ messageCreate วางต่อตรงนี้ได้เลย
+client.on('interactionCreate', async interaction => {
+    // โค้ดรับ Slash Command ของคุณ
+});
+
+client.login('YOUR_BOT_TOKEN');
