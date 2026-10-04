@@ -9,12 +9,12 @@ module.exports = {
         console.log('=====================================');
 
         // 🆔 ตั้งค่า ID ห้อง Log ทั้งหมด
-        const LOG_CHANNEL_ID = '1494379391327928370';       // Log ข้อความ (พิมพ์/แก้ไข/ลบ)
-        const VOICE_LOG_ID = '1525003524164026468';         // Log เสียง (เข้า/ออก/ย้าย/แชร์จอ/เปิดกล้อง)
-        const PRESENCE_LOG_ID = '1547938786632011786';      // Log กิจกรรม (เกม/Spotify/สตรีมสด)
-        const MEDIA_LOG_ID = '1549316883356848249';         // Log สำรองรูปภาพและไฟล์แนบ
-        const SERVER_LOG_ID = '1549433574829326366';        // 🛡️ Log เซิร์ฟเวอร์ & Audit Log (การกระทำ Admin)
-        const INOUT_LOG_ID = '1549433868300328970';         // 🚪 Log คนเข้า-ออกจากเซิร์ฟเวอร์
+        const LOG_CHANNEL_ID = '1494379391327928370';        // Log ข้อความ (พิมพ์/แก้ไข/ลบ)
+        const VOICE_LOG_ID = '1525003524164026468';          // Log เสียง (เข้า/ออก/ย้าย/แชร์จอ/เปิดกล้อง)
+        const PRESENCE_LOG_ID = '1547938786632011786';       // Log กิจกรรม (เกม/Spotify/สตรีมสด)
+        const MEDIA_LOG_ID = '1549316883356848249';          // Log สำรองรูปภาพและไฟล์แนบ
+        const SERVER_LOG_ID = '1549433574829326366';         // 🛡️ Log เซิร์ฟเวอร์ & Audit Log (การกระทำ Admin)
+        const INOUT_LOG_ID = '1549433868300328970';          // 🚪 Log คนเข้า-ออกจากเซิร์ฟเวอร์
 
         // ----------------------------------------------------
         // 🛠️ Helper Functions
@@ -59,12 +59,13 @@ module.exports = {
         // ----------------------------------------------------
         // 🕵️‍♂️ Audit Log Event Handler (ตรวจจับการกระทำของ Admin)
         // ----------------------------------------------------
-        client.on('guildAuditLogEntryCreate', async (auditLog, guild) => {
+        client.on('guildAuditLogEntryCreate', async (auditLog) => {
+            const guild = auditLog.guild;
             const logChannel = await getChannel(SERVER_LOG_ID, 'Audit Log');
             if (!logChannel) return;
 
             const { action, executor, target, reason, changes } = auditLog;
-            const executorTag = executor ? `${executor.tag} (ID: ${executor.id})` : 'ไม่ทราบผู้ทำ';
+            const executorTag = executor ? `${executor.tag} (ID:${executor.id})` : 'ไม่ทราบผู้ทำ';
 
             try {
                 // 1. เตะสมาชิก (Kick)
@@ -214,7 +215,7 @@ module.exports = {
             const info = message.author ? await getMemberInfo(message.guild, message.author) : { displayName: 'Unknown', name: 'Unknown', id: 'N/A' };
             const content = parseContent(message);
             try {
-                await logChannel.send(`\`\`\`md\n# 🗑️ ข้อความถูกลบ\n- เจ้าของข้อความ: ${info.displayName} (${info.name})\n- User ID: ${info.id}\n- ห้อง: #${message.channel.name}\n- ข้อความที่ลบ: ${content.slice(0, 1500)}\n- เวลา: ${getTime()}\n\`\`\``);
+                await logChannel.send(`\`\`\`md\n# 🗑️️ ข้อความถูกลบ\n- เจ้าของข้อความ: ${info.displayName} (${info.name})\n- User ID: ${info.id}\n- ห้อง: #${message.channel.name}\n- ข้อความที่ลบ: ${content.slice(0, 1500)}\n- เวลา: ${getTime()}\n\`\`\``);
             } catch {}
         });
 
