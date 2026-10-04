@@ -1,135 +1,83 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const cron = require('node-cron');
-// ... โค้ดเชื่อมต่อ MongoDB หรือส่วนอื่นๆ ของคุณ ...
+require('dotenv').config();
+const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
+const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
 
-const STEAM_CHANNEL_ID = '1554496562128883742';
-const notifiedGames = new Set();
-const MAX_STORED_GAMES = 500;
-let isFirstRun = true;
+// 1. เชื่อมต่อ MongoDB
+mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+})
+.then(() => {
+    console.log('🟢 เชื่อมต่อฐานข้อมูล MongoDB สำเร็จแล้ว!');
+})
+.catch((err) => {
+    console.error('❌ ไม่สามารถเชื่อมต่อ MongoDB ได้:', err);
+});
 
-async function fetchSteamTrending() {
-    try {
-        const response = await fetch('https://store.steampowered.com/api/featuredcategories?cc=th&l=thai');
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        return data.new_releases?.items || [];
-    } catch (error) {
-        console.error('❌ [Steam API Error]:', error.message);
-        return [];
-    }
-}
+// 2. สร้างตัวแปร client พร้อมกำหนด Intents และ Partials (ต้องอยู่ก่อนนำไปใช้งาน)
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates,
+    ],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+});
 
-async function checkAndAnnounceSteamGames(client) {
-    try {
-        const channel = await client.channels.fetch(STEAM_CHANNEL_ID).catch(() => null);
-        if (!channel || !channel.isTextBased()) return;
+// 3. เก็บ Collection สำหรับรวบรวมคำสั่ง Slash Commands
+client.commands = new Collection();
 
-        const games = await fetchSteamTrending();
-        if (!games.length) return;
-
-        if (isFirstRun) {
-            for (const game of games) {
-                notifiedGames.add(game.id);
-            }
-            isFirstRun = false;
-            console.log(`✅ [Steam Tracker] โหลดรายการเกมเริ่มต้นเรียบร้อยแล้ว (${notifiedGames.size} รายการ)`);
-            return;
-        }
-
-        let sendCount = 0;
-        const MAX_SEND_PER_CHECK = 3;
-
-        for (const game of games) {
-            if (notifiedGames.has(game.id)) continue;
-
-            notifiedGames.add(game.id);
-            if (notifiedGames.size > MAX_STORED_GAMES) {
-                const firstItem = notifiedGames.values().next().value;
-                notifiedGames.delete(firstItem);
-            }
-            
-            sendCount++;
-
-            let priceText = '🆓 เล่นฟรี / ยังไม่ระบุ';
-            let discountBadge = '';
-
-            if (game.final_price !== undefined) {
-                if (game.final_price === 0) {
-                    priceText = '🆓 **เล่นฟรี (Free to Play)**';
-                } else {
-                    const originalPrice = game.original_price ? (game.original_price / 100).toLocaleString('th-TH') : null;
-                    const finalPrice = (game.final_price / 100).toLocaleString('th-TH');
-
-                    if (game.discount_percent > 0) {
-                        priceText = `~~${originalPrice} บาท~~ ➔ **${finalPrice} บาท**`;
-                        discountBadge = ` 🔥 **ลดราคา -${game.discount_percent}%**`;
-                    } else {
-                        priceText = `💵 **${finalPrice} บาท**`;
+// 4. ฟังก์ชันโหลดคำสั่งจากโฟลเดอร์ commands
+function loadCommands() {
+    const foldersPath = path.join(__dirname, 'commands');
+    if (fs.existsSync(foldersPath)) {
+        const commandItems = fs.readdirSync(foldersPath);
+        for (const item of commandItems) {
+            const itemPath = path.join(foldersPath, item);
+            if (fs.statSync(itemPath).isDirectory()) {
+                const commandFiles = fs.readdirSync(itemPath).filter(file => file.endsWith('.js'));
+                for (const file of commandFiles) {
+                    const filePath = path.join(itemPath, file);
+                    const command = require(filePath);
+                    if ('data' in command && 'execute' in command) {
+                        client.commands.set(command.data.name, command);
                     }
                 }
+            } else if (item.endsWith('.js')) {
+                const filePath = itemPath;
+                const command = require(filePath);
+                if ('data' in command && 'execute' in command) {
+                    client.commands.set(command.data.name, command);
+                }
             }
-
-            const steamStoreUrl = `https://store.steampowered.com/app/${game.id}`;
-            const headerImageUrl = game.large_capsule_image || game.header_image;
-
-            const embed = new EmbedBuilder()
-                .setColor(0x1b2838)
-                .setAuthor({
-                    name: 'STEAM STORE • NEW & TRENDING',
-                    iconURL: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/768px-Steam_icon_logo.svg.png'
-                })
-                .setTitle(`🎮 ${game.name}`)
-                .setURL(steamStoreUrl)
-                .setDescription(`✨ **มีเกมมาใหม่กำลังฮิตติดชาร์ตบน Steam!**${discountBadge}`)
-                .addFields(
-                    { name: '💰 ราคาปัจจุบัน', value: priceText, inline: true },
-                    { name: '🌟 แพลตฟอร์ม', value: '💻 PC (Steam)', inline: true }
-                )
-                .setImage(headerImageUrl)
-                .setTimestamp()
-                .setFooter({ text: 'Steam Live Tracker • MasaruBot', iconURL: client.user.displayAvatarURL() });
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setLabel('เปิดดูหน้าสโตร์ Steam')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(steamStoreUrl)
-                    .setEmoji('🛒'),
-                new ButtonBuilder()
-                    .setLabel('ค้นหารีวิวบน YouTube')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(game.name + ' review')}`)
-                    .setEmoji('🔍')
-            );
-
-            await channel.send({ embeds: [embed], components: [row] });
-            await new Promise(resolve => setTimeout(resolve, 3000));
-
-            if (sendCount >= MAX_SEND_PER_CHECK) break;
         }
-    } catch (error) {
-        console.error('❌ [Steam Module Error]:', error);
     }
 }
 
-// ================= Event หลักของบอท (รวมทุกอย่างไว้ที่นี่) =================
-client.once('ready', () => {
-    console.log(`🤖 Logged in as ${client.user.tag}!`);
-    console.log('🎮 [Steam Tracker] ระบบติดตามเกมมาใหม่ Steam พร้อมทำงานแล้ว!');
+// 5. ฟังก์ชันโหลด Event จากโฟลเดอร์ events แบบอัตโนมัติ
+function loadEvents() {
+    const eventsPath = path.join(__dirname, 'events');
+    if (fs.existsSync(eventsPath)) {
+        const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+        for (const file of eventFiles) {
+            const filePath = path.join(eventsPath, file);
+            const event = require(filePath);
+            if (event.once) {
+                client.once(event.name, (...args) => event.execute(...args, client));
+            } else {
+                client.on(event.name, (...args) => event.execute(...args, client));
+            }
+        }
+    }
+}
 
-    // รัน Steam Tracker ครั้งแรก
-    checkAndAnnounceSteamGames(client);
+// 6. รันฟังก์ชันโหลดทั้งหมด
+loadCommands();
+loadEvents();
 
-    // ตั้งเวลา Cron job
-    cron.schedule('0 */2 * * *', () => {
-        console.log('🔄 [Steam Tracker] กำลังตรวจสอบเกม Steam มาใหม่...');
-        checkAndAnnounceSteamGames(client);
-    });
-});
-
-// Event อื่นๆ เช่น interactionCreate (สำหรับ Slash Commands) หรือ messageCreate วางต่อตรงนี้ได้เลย
-client.on('interactionCreate', async interaction => {
-    // โค้ดรับ Slash Command ของคุณ
-});
-
-client.login('YOUR_BOT_TOKEN');
+// 7. เข้าสู่ระบบ Discord ด้วย Token
+client.login(process.env.TOKEN);
