@@ -1,4 +1,4 @@
-const { Events, AuditLogEvent } = require('discord.js');
+const { Events, AuditLogEvent, ActivityType } = require('discord.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -10,11 +10,12 @@ module.exports = {
 
         // 🆔 ตั้งค่า ID ห้อง Log ทั้งหมด
         const LOG_CHANNEL_ID = '1494379391327928370';        // Log ข้อความ (พิมพ์/แก้ไข/ลบ)
-        const VOICE_LOG_ID = '1525003524164026468';          // Log เสียง (เข้า/ออก/ย้าย/แชร์จอ/เปิดกล้อง)
+        const VOICE_LOG_ID = '1525003524164026468';         // Log เสียง (เข้า/ออก/ย้าย/แชร์จอ/เปิดกล้อง)
         const PRESENCE_LOG_ID = '1547938786632011786';       // Log กิจกรรม (เกม/Spotify/สตรีมสด)
         const MEDIA_LOG_ID = '1549316883356848249';          // Log สำรองรูปภาพและไฟล์แนบ
         const SERVER_LOG_ID = '1549433574829326366';         // 🛡️ Log เซิร์ฟเวอร์ & Audit Log (การกระทำ Admin)
         const INOUT_LOG_ID = '1549433868300328970';          // 🚪 Log คนเข้า-ออกจากเซิร์ฟเวอร์
+        const DEBUG_LOG_ID = '1556325842534015207';          // 🛠️ 🟢 บอทออนไลน์ / แจ้งเตือนปัญหา & Debug
 
         // ----------------------------------------------------
         // 🛠️ Helper Functions
@@ -57,6 +58,41 @@ module.exports = {
         };
 
         // ----------------------------------------------------
+        // 🟢 แจ้งเตือนเมื่อบอทออนไลน์สำเร็จ
+        // ----------------------------------------------------
+        const debugChannel = await getChannel(DEBUG_LOG_ID, 'ระบบ Debug & แจ้งเตือนบอท');
+        if (debugChannel) {
+            try {
+                await debugChannel.send(`\`\`\`md\n# 🟢 บอทออนไลน์และพร้อมทำงานแล้ว!\n- ชื่อบอท: ${client.user.tag}\n- Bot ID: ${client.user.id}\n- เซิร์ฟเวอร์ทั้งหมด: ${client.guilds.cache.size} เซิร์ฟเวอร์\n- เวลาเปิดใช้งาน: ${getTime()}\n\`\`\``);
+            } catch (err) {
+                console.error('❌ ไม่สามารถส่งข้อความสถานะ Online ไปยังห้อง Debug ได้:', err.message);
+            }
+        }
+
+        // ----------------------------------------------------
+        // 🛠️ ระบบดักจับ Error / Warning ของบอทเพื่อ Debug
+        // ----------------------------------------------------
+        process.on('unhandledRejection', async (error) => {
+            console.error('unhandledRejection:', error);
+            const channel = await getChannel(DEBUG_LOG_ID, 'Debug');
+            if (channel) {
+                try {
+                    await channel.send(`\`\`\`js\n[⚠️ UNHANDLED REJECTION]\n${error.stack || error}\n\`\`\``);
+                } catch {}
+            }
+        });
+
+        process.on('uncaughtException', async (error) => {
+            console.error('uncaughtException:', error);
+            const channel = await getChannel(DEBUG_LOG_ID, 'Debug');
+            if (channel) {
+                try {
+                    await channel.send(`\`\`\`js\n[❌ UNCAUGHT EXCEPTION]\n${error.stack || error}\n\`\`\``);
+                } catch {}
+            }
+        });
+
+        // ----------------------------------------------------
         // 🕵️‍♂️ Audit Log Event Handler (ตรวจจับการกระทำของ Admin)
         // ----------------------------------------------------
         client.on('guildAuditLogEntryCreate', async (auditLog) => {
@@ -85,7 +121,7 @@ module.exports = {
 
                 // 4. สั่ง Timeout (ปิดปาก)
                 if (action === AuditLogEvent.MemberUpdate) {
-                    const timeoutChange = changes.find(c => c.key === 'communication_disabled_until');
+                    const timeoutChange = changes?.find(c => c.key === 'communication_disabled_until');
                     if (timeoutChange) {
                         if (timeoutChange.new) {
                             await logChannel.send(`\`\`\`md\n# 🔇 สมาชิกถูก Timeout (ปิดปาก)\n- ผู้ถูก Timeout: ${target?.tag || 'ไม่ทราบ'} (ID: ${target?.id})\n- ดำเนินการโดย: ${executorTag}\n- จนถึงเวลา: ${new Date(timeoutChange.new).toLocaleString('th-TH')}\n- เหตุผล: ${reason || 'ไม่ได้ระบุ'}\n- เวลา: ${getTime()}\n\`\`\``);
@@ -215,7 +251,7 @@ module.exports = {
             const info = message.author ? await getMemberInfo(message.guild, message.author) : { displayName: 'Unknown', name: 'Unknown', id: 'N/A' };
             const content = parseContent(message);
             try {
-                await logChannel.send(`\`\`\`md\n# 🗑️️ ข้อความถูกลบ\n- เจ้าของข้อความ: ${info.displayName} (${info.name})\n- User ID: ${info.id}\n- ห้อง: #${message.channel.name}\n- ข้อความที่ลบ: ${content.slice(0, 1500)}\n- เวลา: ${getTime()}\n\`\`\``);
+                await logChannel.send(`\`\`\`md\n# 🗑 ข้อความถูกลบ\n- เจ้าของข้อความ: ${info.displayName} (${info.name})\n- User ID: ${info.id}\n- ห้อง: #${message.channel.name}\n- ข้อความที่ลบ: ${content.slice(0, 1500)}\n- เวลา: ${getTime()}\n\`\`\``);
             } catch {}
         });
 
@@ -247,8 +283,8 @@ module.exports = {
             try {
                 const info = await getMemberInfo(newPresence.guild, newPresence.user);
 
-                const oldGame = oldPresence?.activities.find(a => a.type === 0);
-                const newGame = newPresence.activities.find(a => a.type === 0);
+                const oldGame = oldPresence?.activities.find(a => a.type === ActivityType.Playing);
+                const newGame = newPresence.activities.find(a => a.type === ActivityType.Playing);
 
                 if (!oldGame && newGame) {
                     let detailsText = '';
@@ -266,8 +302,8 @@ module.exports = {
                     await logChannel.send(`\`\`\`md\n# 🎵 เริ่มฟังเพลง Spotify\n- ชื่อเล่น: ${info.displayName}\n- ชื่อหลัก: ${info.name}\n- User ID: ${info.id}\n- เพลง: ${newSpotify.details || 'ไม่ระบุ'}\n- ศิลปิน: ${newSpotify.state || 'ไม่ระบุ'}\n- อัลบั้ม: ${newSpotify.assets?.largeText || 'ไม่ระบุ'}\n- เวลา: ${getTime()}\n\`\`\``);
                 }
 
-                const oldStream = oldPresence?.activities.find(a => a.type === 1);
-                const newStream = newPresence.activities.find(a => a.type === 1);
+                const oldStream = oldPresence?.activities.find(a => a.type === ActivityType.Streaming);
+                const newStream = newPresence.activities.find(a => a.type === ActivityType.Streaming);
                 if (!oldStream && newStream) {
                     await logChannel.send(`\`\`\`md\n# 🔴 เริ่มสตรีมสด\n- ชื่อเล่น: ${info.displayName}\n- ชื่อหลัก: ${info.name}\n- User ID: ${info.id}\n- หัวข้อ: ${newStream.details || newStream.name}\n- ลิงก์: ${newStream.url || 'ไม่มี'}\n- เวลา: ${getTime()}\n\`\`\``);
                 }
@@ -284,7 +320,9 @@ module.exports = {
             // เปลี่ยนชื่อเล่น
             if (oldMember.nickname !== newMember.nickname) {
                 try {
-                    await logChannel.send(`\`\`\`md\n# ✏️ เปลี่ยนชื่อเล่น (Nickname)\n- ชื่อหลัก: ${newMember.user.tag}\n- User ID: ${newMember.id}\n- ชื่อเดิม: ${oldMember.nickname || oldMember.user.username}\n- ชื่อใหม่: ${newMember.nickname || newMember.user.username}\n- เวลา: ${getTime()}\n\`\`\``);
+                    const oldNick = oldMember.nickname || '(ไม่มีชื่อเล่น)';
+                    const newNick = newMember.nickname || '(รีเซ็ตใช้ชื่อหลัก)';
+                    await logChannel.send(`\`\`\`md\n# ✏️ เปลี่ยนชื่อเล่น (Nickname)\n- ชื่อหลัก: ${newMember.user.tag}\n- User ID: ${newMember.id}\n- ชื่อเดิม: ${oldNick}\n- ชื่อใหม่: ${newNick}\n- เวลา: ${getTime()}\n\`\`\``);
                 } catch {}
             }
 
