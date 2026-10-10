@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
-const MemberActivity = require('../models/MemberActivity'); // เรียกใช้งาน Mongoose Schema ที่เราสร้างไว้
+const MemberActivity = require('../models/MemberActivity'); // เรียกใช้งาน Mongoose Schema
+const { initGameTrackers } = require('./gameTracker.js');  // เรียกใช้งานระบบติดตามเกม Steam & Epic Games
 
 const EXEMPT_ROLE_ID = '1527270612291158077'; // ยศยกเว้นการถอดยศ
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000; // 30 วัน
@@ -61,7 +62,7 @@ module.exports = {
 
 
         // ==========================================
-        // 2. ระบบตรวจสอบสมาชิกไม่แอคทีฟ 30 วัน (เชื่อมต่อ MongoDB ป้องกันการเตะคนเก่า)
+        // 2. ระบบตรวจสอบสมาชิกไม่แอคทีฟ 30 วัน (MongoDB)
         // ==========================================
         const checkInactiveMembers = async () => {
             console.log('🔍 กำลังตรวจสอบสมาชิกที่ไม่ได้ใช้งานเกิน 30 วัน...');
@@ -80,8 +81,7 @@ module.exports = {
                         let activity = await MemberActivity.findOne({ guildId, userId: memberId });
 
                         if (!activity) {
-                            // 🛡️ ป้องกันปัญหา: ถ้ายังไม่มีข้อมูลใน DB ให้สร้างข้อมูลตั้งต้นเป็น "เวลาปัจจุบัน" 
-                            // จะได้ไม่สั่งถอดยศหรือเตะคนเก่าออกทันทีที่บอทรีสตาร์ท
+                            // 🛡️ ป้องกันปัญหา: ถ้ายังไม่มีข้อมูลใน DB ให้สร้างข้อมูลตั้งต้นเป็น "เวลาปัจจุบัน"
                             await MemberActivity.create({ guildId, userId: memberId, lastActive: new Date() });
                             continue;
                         }
@@ -92,7 +92,7 @@ module.exports = {
                         if (inactiveTime > THIRTY_DAYS_MS) {
                             console.log(`⚠️ สมาชิก ${member.user.tag} ไม่แอคทีฟเกิน 30 วัน`);
                             
-                            // 📌 โค้ดสำหรับถอดยศ (คุณสามารถใส่ไอดีรอนที่ต้องการถอดตรงนี้ได้เลย)
+                            // 📌 โค้ดสำหรับถอดยศ (สามารถใส่ไอดีรอนที่ต้องการถอดตรงนี้ได้เลย)
                             // เช่น: await member.roles.remove('ID_ยศที่ต้องการถอด');
                         }
                     }
@@ -104,5 +104,15 @@ module.exports = {
 
         // รันเช็กทุกๆ 24 ชั่วโมง
         setInterval(checkInactiveMembers, 24 * 60 * 60 * 1000);
+
+
+        // ==========================================
+        // 3. ระบบติดตามเกมใหม่ (Steam & Epic Games Tracker)
+        // ==========================================
+        try {
+            initGameTrackers(client);
+        } catch (error) {
+            console.error('❌ ไม่สามารถเปิดใช้งานระบบ Game Trackers ได้:', error);
+        }
     },
 };
