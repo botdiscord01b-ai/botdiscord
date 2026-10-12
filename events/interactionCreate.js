@@ -18,6 +18,9 @@ const TEMP_ROLE_ID = '1550062346435567657';
 const EXEMPT_ROLE_ID = '1527270612291158077'; // ยศยกเว้นการถอดยศ
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+// ตัวแปร Map สำหรับเก็บชั่วคราวว่า ผู้ใช้คนไหนเลือกจะส่งโพสต์ไปที่ห้องไหน
+const selectedPostChannels = new Map();
+
 module.exports = {
     name: Events.InteractionCreate,
 
@@ -124,8 +127,21 @@ module.exports = {
         }
 
         // =========================================================
-        // 2. SELECT MENU (เปิด Modal ให้ผู้ใช้กรอก)
+        // 2. SELECT MENU (รวมระบบยศเดิม และ ระบบเลือกห้องโพสต์ใหม่)
         // =========================================================
+        
+        // 2.1 ระบบเลือกห้องโพสต์ใหม่ (Channel Select Menu จากห้องควบคุม)
+        if (interaction.isChannelSelectMenu() && interaction.customId === 'select_target_channel') {
+            const chosenChannelId = interaction.values[0];
+            selectedPostChannels.set(interaction.user.id, chosenChannelId);
+
+            return await interaction.reply({
+                content: `📌 เลือกห้องเป้าหมายเป็น <#${chosenChannelId}> เรียบร้อยแล้ว! ตอนนี้สามารถกดปุ่ม **"📝 กรอกข้อมูลโพสต์"** ด้านล่างได้เลยครับ`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        // 2.2 ระบบเลือกยศเดิม (String Select Menu)
         if (interaction.isStringSelectMenu() && interaction.customId === 'select_role_menu') {
             const selectedValue = interaction.values[0];
 
@@ -175,11 +191,102 @@ module.exports = {
         }
 
         // =========================================================
-        // 3. MODAL SUBMIT (ประมวลผลข้อมูลลงทะเบียน)
+        // 3. BUTTON INTERACTIONS (ระบบปุ่มกดแผงควบคุมโพสต์)
+        // =========================================================
+        if (interaction.isButton() && interaction.customId === 'open_post_modal') {
+            if (!selectedPostChannels.has(interaction.user.id)) {
+                return await interaction.reply({
+                    content: '⚠️ กรุณาเลือก **ห้องเป้าหมาย** จากเมนูด้านบนในห้องควบคุมก่อนกดปุ่มนี้ครับ!',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const modal = new ModalBuilder()
+                .setCustomId('submit_post_modal')
+                .setTitle('กรอกข้อมูลโพสต์ / ลิงก์เพจ');
+
+            const titleInput = new TextInputBuilder()
+                .setCustomId('post_title')
+                .setLabel('หัวข้อเรื่อง (Title)')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('เช่น อัปเดตข่าวสาร / ประกาศสำคัญ')
+                .setRequired(true);
+
+            const linkInput = new TextInputBuilder()
+                .setCustomId('post_link')
+                .setLabel('ลิงก์ Fanpage หรือ Website')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('https://facebook.com/...')
+                .setRequired(true);
+
+            const descInput = new TextInputBuilder()
+                .setCustomId('post_desc')
+                .setLabel('รายละเอียดเพิ่มเติม (Description)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder('พิมพ์รายละเอียดข้อความตรงนี้...')
+                .setRequired(false);
+
+            const imageInput = new TextInputBuilder()
+                .setCustomId('post_image')
+                .setLabel('ลิงก์รูปภาพ (Image URL - ถ้ามี)')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('https://i.imgur.com/example.png')
+                .setRequired(false);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(titleInput),
+                new ActionRowBuilder().addComponents(linkInput),
+                new ActionRowBuilder().addComponents(descInput),
+                new ActionRowBuilder().addComponents(imageInput)
+            );
+
+            return await interaction.showModal(modal);
+        }
+
+        // =========================================================
+        // 4. MODAL SUBMIT (ประมวลผลข้อมูลทั้งระบบยศ และ ระบบโพสต์)
         // =========================================================
         if (interaction.isModalSubmit()) {
 
-            // --- 3.1 ยศชั่วคราว ---
+            // --- 4.1 ระบบโพสต์ Embed ใหม่ (Control Panel) ---
+            if (interaction.customId === 'submit_post_modal') {
+                const channelId = selectedPostChannels.get(interaction.user.id);
+                const targetChannel = interaction.guild.channels.cache.get(channelId);
+
+                if (!targetChannel) {
+                    return await interaction.reply({
+                        content: '❌ ไม่พบห้องเป้าหมายที่เลือกไว้ หรือห้องอาจถูกลบไปแล้ว กรุณาเลือกห้องใหม่อีกครั้งครับ',
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
+
+                const title = interaction.fields.getTextInputValue('post_title');
+                const link = interaction.fields.getTextInputValue('post_link');
+                const desc = interaction.fields.getTextInputValue('post_desc') || 'ไม่มีรายละเอียดเพิ่มเติม';
+                const imageUrl = interaction.fields.getTextInputValue('post_image');
+
+                const embed = new EmbedBuilder()
+                    .setTitle(title)
+                    .setURL(link)
+                    .setDescription(desc)
+                    .setColor(0x0099FF)
+                    .addFields({ name: '🔗 ลิงก์ติดตาม', value: `[คลิกที่นี่เพื่อไปยังลิงก์](${link})` })
+                    .setFooter({ text: `โพสต์โดย ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
+                    .setTimestamp();
+
+                if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+                    embed.setImage(imageUrl);
+                }
+
+                await targetChannel.send({ embeds: [embed] });
+
+                return await interaction.reply({
+                    content: `✅ ส่ง Embed โพสต์ไปยังห้อง ${targetChannel.mention} เรียบร้อยแล้ว!`,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // --- 4.2 ยศชั่วคราว ---
             if (interaction.customId === 'modal_temp_role') {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -197,12 +304,10 @@ module.exports = {
 
                 await member.roles.add(tempRole.id);
 
-                // ตั้งเวลาถอด 24 ชม. แต่เพิ่มเงื่อนไขเช็คว่าถ้ามีสิทธิ์ยกเว้น (EXEMPT_ROLE_ID) จะไม่ถอด
                 setTimeout(async () => {
                     try {
                         const updatedMember = await guild.members.fetch(member.id).catch(() => null);
                         if (updatedMember && updatedMember.roles.cache.has(TEMP_ROLE_ID)) {
-                            // เช็คว่ามี Role ยกเว้นหรือไม่
                             if (updatedMember.roles.cache.has(EXEMPT_ROLE_ID)) {
                                 console.log(`🛡️ ยกเว้นการถอดยศชั่วคราวจาก ${updatedMember.user.tag} เนื่องจากมีบอส/ยศยกเว้น`);
                                 return;
@@ -240,7 +345,7 @@ module.exports = {
                 return await interaction.editReply({ content: replyText });
             }
 
-            // --- 3.2 ยศถาวร ---
+            // --- 4.3 ยศถาวร ---
             if (interaction.customId.startsWith('modal_perm_role_')) {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
