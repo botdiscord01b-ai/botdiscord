@@ -1,4 +1,4 @@
-const { Events } = require('discord.js');
+const { Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
 const MemberActivity = require('../models/MemberActivity'); // เรียกใช้งาน Mongoose Schema
 const { initGameTrackers } = require('./gameTracker.js');  // เรียกใช้งานระบบติดตามเกม Steam & Epic Games
 
@@ -91,9 +91,6 @@ module.exports = {
 
                         if (inactiveTime > THIRTY_DAYS_MS) {
                             console.log(`⚠️ สมาชิก ${member.user.tag} ไม่แอคทีฟเกิน 30 วัน`);
-                            
-                            // 📌 โค้ดสำหรับถอดยศ (สามารถใส่ไอดีรอนที่ต้องการถอดตรงนี้ได้เลย)
-                            // เช่น: await member.roles.remove('ID_ยศที่ต้องการถอด');
                         }
                     }
                 } catch (error) {
@@ -113,6 +110,49 @@ module.exports = {
             initGameTrackers(client);
         } catch (error) {
             console.error('❌ ไม่สามารถเปิดใช้งานระบบ Game Trackers ได้:', error);
+        }
+
+
+        // ==========================================
+        // 4. ระบบส่งแผงควบคุม (Control Panel) สำหรับสร้างโพสต์
+        // ==========================================
+        try {
+            const CONTROL_CHANNEL_ID = '1559105957286514698'; // ห้องควบคุมของคุณ
+            const controlChannel = client.channels.cache.get(CONTROL_CHANNEL_ID);
+
+            if (controlChannel) {
+                const embed = new EmbedBuilder()
+                    .setTitle('⚙️ แผงควบคุมการส่งโพสต์ (Post Control Panel)')
+                    .setDescription(
+                        '**ขั้นตอนการใช้งาน:**\n' +
+                        '1️⃣ **เลือกห้องเป้าหมาย** ที่ต้องการส่งโพสต์จากเมนูด้านล่าง\n' +
+                        '2️⃣ กดปุ่ม **"📝 กรอกข้อมูลโพสต์"** เพื่อเปิดแบบฟอร์ม\n' +
+                        '3️⃣ เมื่อกรอกเสร็จและกดส่ง บอทจะสร้าง Embed ส่งไปยังห้องที่เลือกทันที!'
+                    )
+                    .setColor(0x5865F2)
+                    .setFooter({ text: 'ระบบจัดการโพสต์อัตโนมัติ' });
+
+                // เมนูเลือกห้อง (Channel Select Menu)
+                const channelSelect = new ChannelSelectMenuBuilder()
+                    .setCustomId('select_target_channel')
+                    .setPlaceholder('📌 เลือกห้อง (Channel) ที่ต้องการส่งโพสต์...')
+                    .setChannelTypes(ChannelType.GuildText);
+
+                // ปุ่มกดเปิดแบบฟอร์ม (Button)
+                const postButton = new ButtonBuilder()
+                    .setCustomId('open_post_modal')
+                    .setLabel('📝 กรอกข้อมูลโพสต์')
+                    .setStyle(ButtonStyle.Success);
+
+                const row1 = new ActionRowBuilder().addComponents(channelSelect);
+                const row2 = new ActionRowBuilder().addComponents(postButton);
+
+                // ส่งการ์ดแผงควบคุมไปที่ห้องควบคุม
+                await controlChannel.send({ embeds: [embed], components: [row1, row2] });
+                console.log('✅ ส่งแผงควบคุม (Control Panel) ไปยังห้องควบคุมเรียบร้อยแล้ว!');
+            }
+        } catch (error) {
+            console.error('❌ ไม่สามารถส่งแผงควบคุมได้:', error);
         }
     },
 };
