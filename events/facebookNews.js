@@ -1,21 +1,21 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, Events } = require('discord.js');
 const RssParser = require('rss-parser');
 const parser = new RssParser();
 
 // ID ห้องดิสคอร์ดสำหรับรับข่าวสาร Yulgang Rebuild
 const NEWS_CHANNEL_ID = '1560666857818693722'; 
 
-// ลิงก์ RSS Feed ของเพจ https://www.facebook.com/ygrebuild
-const FB_RSS_URL = 'https://rss.app/feeds/ygrebuild.xml';
+// ลิงก์ RSS Feed จาก RSS.app ของเพจ https://www.facebook.com/ygrebuild
+const FB_RSS_URL = 'https://rss.app/feeds/45fCk604cOtqEzuQ.xml'; 
 
 // ตั้งเวลาตรวจสอบโพสต์ใหม่ทุกๆ 5 นาที (5 * 60 * 1000 ms)
 const CHECK_INTERVAL = 5 * 60 * 1000; 
 
-// ตัวแปรสำหรับจำ ID / Link ของโพสต์ล่าสุดที่เคยส่งไปแล้วเพื่อป้องกันการส่งซ้ำ
+// ตัวแปรสำหรับจำ ID / Link ของโพสต์ล่าสุดป้องกันการส่งซ้ำ
 let lastPostedGuid = null;
 
 module.exports = {
-    name: 'ready',
+    name: Events.ClientReady,
     once: false,
     async execute(client) {
         console.log('✅ ระบบติดตามข่าวสาร Facebook (Yulgang Rebuild) เริ่มทำงานแล้ว!');
@@ -32,15 +32,13 @@ module.exports = {
                 const feed = await parser.parseURL(FB_RSS_URL);
                 if (!feed.items || feed.items.length === 0) return;
 
-                // 2. เจาะจงดึงเฉพาะ "โพสต์ล่าสุด" (ตำแหน่งแรกสุด index 0)
+                // 2. ดึงเฉพาะ "โพสต์ล่าสุด" (ตำแหน่งแรกสุด index 0)
                 const latestPost = feed.items[0]; 
-                
-                // ระบุ Key สำคัญของโพสต์ (ใช้ guid, id หรือ link อย่างใดอย่างหนึ่ง)
                 const currentPostGuid = latestPost.guid || latestPost.id || latestPost.link;
 
-                // 3. ระบบเช็กป้องกันการส่งซ้ำ: ถ้า ID โพสต์ตรงกับที่เคยส่งไปแล้ว ให้ข้ามการทำงานทันที
+                // 3. ระบบเช็กป้องกันการส่งซ้ำ
                 if (lastPostedGuid === currentPostGuid) {
-                    return; // เป็นโพสต์เดิม ไม่ต้องส่ง
+                    return; // เป็นโพสต์เดิม ข้ามการทำงาน
                 }
 
                 // 4. บันทึก ID โพสต์ล่าสุดไว้ในระบบ
@@ -51,17 +49,15 @@ module.exports = {
                 if (latestPost.enclosure && latestPost.enclosure.url) {
                     imageUrl = latestPost.enclosure.url;
                 } else if (latestPost.content) {
-                    // ใช้ Regex ค้นหา URL รูปภาพใน Tag HTML <img>
                     const imgMatch = latestPost.content.match(/src=["'](.*?\.(?:png|jpg|jpeg|gif|webp))["']/i);
                     if (imgMatch) imageUrl = imgMatch[1];
                 }
 
-                // 6. ดึงเนื้อหาข้อความในโพสต์ (Clean HTML/Text)
+                // 6. ดึงเนื้อหาข้อความในโพสต์
                 const rawContent = latestPost.contentSnippet || latestPost.content || 'ไม่มีรายละเอียดข้อความ';
-                // ตัดคำให้อยู่ในขีดจำกัด Discord Embed (สูงสุดไม่เกิน 2,000 ตัวอักษร)
                 const cleanContent = rawContent.length > 1800 ? rawContent.substring(0, 1797) + '...' : rawContent;
 
-                // 7. สร้าง Embed โครงสร้างสวยงาม
+                // 7. สร้าง Embed
                 const embed = new EmbedBuilder()
                     .setTitle(`📢 อัปเดตใหม่จากเพจ Yulgang Rebuild`)
                     .setURL(latestPost.link)
@@ -73,7 +69,6 @@ module.exports = {
                         iconURL: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png' 
                     });
 
-                // ใส่รูปภาพ Banner ขนาดใหญ่ถ้าระบบตรวจเจอบนโพสต์
                 if (imageUrl) {
                     embed.setImage(imageUrl);
                 }
