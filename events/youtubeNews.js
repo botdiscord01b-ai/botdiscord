@@ -38,6 +38,9 @@ const YOUTUBE_CHANNELS = {
     }
 };
 
+// ฟังก์ชันช่วยหน่วงเวลา (ป้องกันยิง Request ถี่เกินไปจนโดนเซิร์ฟเวอร์บล็อก)
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 module.exports = {
     name: 'ready',
     once: false,
@@ -52,6 +55,7 @@ module.exports = {
             console.log('[YouTubeAuto] กำลังตรวจสอบคลิป/ไลฟ์สดใหม่จากทุกช่อง...');
             for (const key in YOUTUBE_CHANNELS) {
                 await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS[key], false);
+                await sleep(3000); // หน่วงเวลา 3 วินาทีต่อช่อง ป้องกัน Error 500/404 จากการยิงรวดเดียว
             }
         }, CHECK_INTERVAL);
 
@@ -70,11 +74,17 @@ module.exports = {
                     return message.reply(`❌ ไม่พบห้องเป้าหมาย (Channel ID: ${TARGET_CHANNEL_ID})`);
                 }
 
-                if (targetGame === 'pubg' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.pubg, true);
-                if (targetGame === 'abi' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.abi, true);
-                if (targetGame === 'scum' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.scum, true);
-                if (targetGame === 'valorant' || targetGame === 'val' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.valorant, true);
-                if (targetGame === 'cs2' || targetGame === 'counter' || targetGame === 'all') await fetchAndSendLatestVideo(targetChannel, YOUTUBE_CHANNELS.cs2, true);
+                const channelsToCheck = [];
+                if (targetGame === 'pubg' || targetGame === 'all') channelsToCheck.push(YOUTUBE_CHANNELS.pubg);
+                if (targetGame === 'abi' || targetGame === 'all') channelsToCheck.push(YOUTUBE_CHANNELS.abi);
+                if (targetGame === 'scum' || targetGame === 'all') channelsToCheck.push(YOUTUBE_CHANNELS.scum);
+                if (targetGame === 'valorant' || targetGame === 'val' || targetGame === 'all') channelsToCheck.push(YOUTUBE_CHANNELS.valorant);
+                if (targetGame === 'cs2' || targetGame === 'counter' || targetGame === 'all') channelsToCheck.push(YOUTUBE_CHANNELS.cs2);
+
+                for (const channelObj of channelsToCheck) {
+                    await fetchAndSendLatestVideo(targetChannel, channelObj, true);
+                    await sleep(2000);
+                }
 
                 if (message.channel.id !== TARGET_CHANNEL_ID) {
                     await message.reply(`✅ ดึงวิดีโอ/ไลฟ์สดล่าสุดเรียบร้อยแล้ว!`);
@@ -132,7 +142,14 @@ async function fetchAndSendLatestVideo(channel, game, isManualTrigger) {
         console.log(`[YouTubeNews] โพสต์ ${isLive ? 'ไลฟ์สด' : 'คลิป'} "${videoTitle}" สำเร็จ!`);
 
     } catch (error) {
-        console.error(`[YouTubeNews Error] ${game.name}:`, error.message);
+        // จัดการและคัดกรองการแสดงผล Error ให้ระบุชัดเจน และไม่ขัดจังหวะลูปของช่องอื่น
+        if (error.message.includes('404')) {
+            console.warn(`⚠️ [YouTube Warning] ช่อง ${game.name} ไม่พบ Feed (404) เซิร์ฟเวอร์ YouTube อาจบล็อกชั่วคราว`);
+        } else if (error.message.includes('500') || error.message.includes('Status code 500')) {
+            console.warn(`⚠️ [YouTube Warning] เซิร์ฟเวอร์ YouTube ขัดข้องชั่วคราวสำหรับช่อง ${game.name} (500) ระบบจะลองใหม่รอบถัดไป`);
+        } else {
+            console.error(`[YouTubeNews Error] ${game.name}:`, error.message);
+        }
     }
 }
 
@@ -142,7 +159,6 @@ function checkIfLive(item) {
     const link = (item.link || '').toLowerCase();
     const rawContent = JSON.stringify(item).toLowerCase();
 
-    // เช็กว่ามีคำที่สื่อถึงการสตรีมสดในชื่อคลิปหรือลิงก์หรือไม่
     const liveKeywords = ['live', 'ถ่ายทอดสด', 'สตรีมสด', 'premiere', 'กำลังถ่ายทอดสด'];
     
     if (link.includes('/live/') || rawContent.includes('yt:servicetype') || rawContent.includes('livebroadcast')) {
