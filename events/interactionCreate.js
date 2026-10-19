@@ -87,7 +87,7 @@ module.exports = {
                         'ยินดีต้อนรับเข้าสู่ระบบลงทะเบียนรับยศ\n\n' +
                         '🔰 **ข้อแตกต่างประเภทการรับยศ:**\n' +
                         '▪️ **ยศถาวร:** ต้องกรอกชื่อดิสคอร์ด + Steam ID64 (ตรวจ VAC Ban)\n' +
-                        '▪ **ยศชั่วคราว (1 วัน):** กรอกเฉพาะชื่อดิสคอร์ด (ไม่ต้องกรอก Steam ID)\n\n' +
+                        '▪️ **ยศชั่วคราว (1 วัน):** กรอกเฉพาะชื่อดิสคอร์ด (ไม่ต้องกรอก Steam ID)\n\n' +
                         '⚠️ **เงื่อนไขการรักษายศ (การถอดยศอัตโนมัติ):**\n' +
                         '• สมาชิกที่ไม่เข้าห้องเสียง หรือไม่พิมพ์ข้อความใดๆ ในเซิร์ฟเวอร์**เกิน 30 วัน** จะถูกถอดยศออกทั้งหมดโดยอัตโนมัติ\n' +
                         '• (ยกเว้นผู้ที่มีบทบาทพิเศษ จะไม่ถูกถอดยศอัตโนมัติ)\n\n' +
@@ -127,7 +127,7 @@ module.exports = {
         }
 
         // =========================================================
-        // 2. SELECT MENU (รวมระบบยศเดิม และ ระบบเลือกห้องโพสต์ใหม่)
+        // 2. SELECT MENU (ระบบเลือกยศ & ระบบเลือกห้องโพสต์)
         // =========================================================
         
         // 2.1 ระบบเลือกห้องโพสต์ใหม่ (Channel Select Menu จากห้องควบคุม)
@@ -141,7 +141,7 @@ module.exports = {
             });
         }
 
-        // 2.2 ระบบเลือกยศเดิม (String Select Menu)
+        // 2.2 ระบบเลือกยศ (String Select Menu)
         if (interaction.isStringSelectMenu() && interaction.customId === 'select_role_menu') {
             const selectedValue = interaction.values[0];
 
@@ -244,7 +244,7 @@ module.exports = {
         }
 
         // =========================================================
-        // 4. MODAL SUBMIT (ประมวลผลข้อมูลทั้งระบบยศ และ ระบบโพสต์)
+        // 4. MODAL SUBMIT (ประมวลผลข้อมูล Modal ทั้งหมด)
         // =========================================================
         if (interaction.isModalSubmit()) {
 
@@ -281,7 +281,7 @@ module.exports = {
                 await targetChannel.send({ embeds: [embed] });
 
                 return await interaction.reply({
-                    content: `✅ ส่ง Embed โพสต์ไปยังห้อง ${targetChannel.mention} เรียบร้อยแล้ว!`,
+                    content: `✅ ส่ง Embed โพสต์ไปยังห้อง <#${targetChannel.id}> เรียบร้อยแล้ว!`,
                     flags: MessageFlags.Ephemeral
                 });
             }
@@ -309,7 +309,7 @@ module.exports = {
                         const updatedMember = await guild.members.fetch(member.id).catch(() => null);
                         if (updatedMember && updatedMember.roles.cache.has(TEMP_ROLE_ID)) {
                             if (updatedMember.roles.cache.has(EXEMPT_ROLE_ID)) {
-                                console.log(`🛡️ ยกเว้นการถอดยศชั่วคราวจาก ${updatedMember.user.tag} เนื่องจากมีบอส/ยศยกเว้น`);
+                                console.log(`🛡️ ยกเว้นการถอดยศชั่วคราวจาก ${updatedMember.user.tag} เนื่องจากมีบทบาทพิเศษ`);
                                 return;
                             }
 
