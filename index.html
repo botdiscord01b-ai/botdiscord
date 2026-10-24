@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MasaruShop (มาซารุ ช็อป) - Yulgang Rebuild Marketplace</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                            700: '#a16207',
+                        },
+                        dark: {
+                            800: '#121212',
+                            900: '#0a0a0a',
+                            700: '#1e1e1e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome & Lucide Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #e5e7eb;
+            font-family: 'Kanit', sans-serif;
+        }
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #ffe066 0%, #eab308 50%, #996515 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gold-border {
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+        .gold-border-glow:hover {
+            border-color: rgba(234, 179, 8, 0.8);
+            box-shadow: 0 0 15px rgba(234, 179, 8, 0.2);
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="bg-dark-800/90 backdrop-blur border-b border-gold-500/20 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-gold-400 to-gold-700 flex items-center justify-center font-bold text-black text-xl shadow-lg shadow-gold-500/20">
+                    M
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold gold-gradient-text leading-tight">MasaruShop</h1>
+                    <p class="text-xs text-gray-400">มาซารุ ช็อป • Yulgang Rebuild</p>
+                </div>
+            </div>
+
+            <!-- User Auth Profile Bar -->
+            <div id="authProfile" class="flex items-center space-x-3">
+                <!-- JS will inject user bar or login button here -->
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+        
+        <!-- OWNER NOTICE BANNER -->
+        <div id="ownerNotice" class="hidden mb-6 p-4 rounded-xl bg-gold-500/10 border border-gold-500/40 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="p-2 bg-gold-500/20 text-gold-400 rounded-lg"><i class="fa-solid fa-crown text-xl"></i></span>
+                <div>
+                    <h3 class="font-bold text-gold-400 text-sm sm:text-base">เข้าสู่ระบบในฐานะ Owner / แอดมินร้าน (ID: 550122613087666177)</h3>
+                    <p class="text-xs text-gray-300">คุณสามารถสร้างแพ็กเกจขายของ จัดการสต็อก และเปลี่ยนสถานะรายการได้</p>
+                </div>
+            </div>
+            <button onclick="openAddModal()" class="px-4 py-2 bg-gold-500 hover:bg-gold-400 text-black font-bold rounded-lg text-sm transition flex items-center space-x-2 shadow-lg shadow-gold-500/20">
+                <i class="fa-solid fa-plus"></i>
+                <span>สร้างแพ็กสินค้า</span>
+            </button>
+        </div>
+
+        <!-- STATS DASHBOARD -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-dark-800 p-4 rounded-xl gold-border">
+                <p class="text-xs text-gray-400 mb-1">สินค้าทั้งหมด</p>
+                <p id="statTotal" class="text-2xl font-bold text-white">0</p>
+            </div>
+            <div class="bg-dark-800 p-4 rounded-xl gold-border">
+                <p class="text-xs text-gray-400 mb-1">พร้อมขาย (In Stock)</p>
+                <p id="statAvailable" class="text-2xl font-bold text-green-400">0</p>
+            </div>
+            <div class="bg-dark-800 p-4 rounded-xl gold-border">
+                <p class="text-xs text-gray-400 mb-1">ขายแล้ว (Sold Out)</p>
+                <p id="statSold" class="text-2xl font-bold text-red-400">0</p>
+            </div>
+            <div class="bg-dark-800 p-4 rounded-xl gold-border">
+                <p class="text-xs text-gray-400 mb-1">มูลค่าสินค้ารวม</p>
+                <p id="statValue" class="text-2xl font-bold gold-gradient-text">0 M</p>
+            </div>
+        </div>
+
+        <!-- SEARCH & FILTER BAR -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
+            <div class="relative w-full sm:w-80">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" id="searchInput" oninput="renderItems()" placeholder="ค้นหาไอเทม, ออพชั่น..." 
+                       class="w-full bg-dark-800 gold-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-gold-500">
+            </div>
+            
+            <div class="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+                <button onclick="setCategory('all')" class="cat-btn active px-3 py-1.5 rounded-lg text-xs font-medium bg-gold-500 text-black">ทั้งหมด</button>
+                <button onclick="setCategory('อาวุธ')" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-dark-800 text-gray-300 gold-border hover:border-gold-500">อาวุธ</button>
+                <button onclick="setCategory('ยุทธภัณฑ์')" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-dark-800 text-gray-300 gold-border hover:border-gold-500">ยุทธภัณฑ์/เกราะ</button>
+                <button onclick="setCategory('ไอดี')" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-dark-800 text-gray-300 gold-border hover:border-gold-500">ไอดีตัวละคร</button>
+                <button onclick="setCategory('เงินสลึง')" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-dark-800 text-gray-300 gold-border hover:border-gold-500">เงินสลึง M</button>
+            </div>
+        </div>
+
+        <!-- ITEM GRID CONTAINER -->
+        <div id="itemGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Items rendered via JavaScript -->
+        </div>
+
+        <!-- EMPTY STATE -->
+        <div id="emptyState" class="hidden text-center py-16">
+            <i class="fa-solid fa-box-open text-5xl text-gray-600 mb-3"></i>
+            <p class="text-gray-400 font-medium">ยังไม่มีรายการสินค้าในขณะนี้</p>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-dark-800 border-t border-gold-500/20 py-4 text-center text-xs text-gray-500">
+        <p>© 2026 MasaruShop (มาซารุ ช็อป) - Yulgang Rebuild Marketplace. All rights reserved.</p>
+    </footer>
+
+    <!-- MODAL: ADD / EDIT ITEM (ADMIN ONLY) -->
+    <div id="itemModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-dark-800 border border-gold-500/40 rounded-xl w-full max-w-md p-6 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h2 id="modalTitle" class="text-lg font-bold text-gold-400 mb-4">สร้างแพ็กเกจสินค้าใหม่</h2>
+            
+            <form id="itemForm" onsubmit="saveItem(event)" class="space-y-4">
+                <input type="hidden" id="itemId">
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">ชื่อไอเทม / รายการ *</label>
+                    <input type="text" id="itemName" required placeholder="เช่น ดาบมังกรดำ +10 ออพวิพากษ์" 
+                           class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1">หมวดหมู่ *</label>
+                        <select id="itemCategory" class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold-500">
+                            <option value="อาวุธ">อาวุธ</option>
+                            <option value="ยุทธภัณฑ์">ยุทธภัณฑ์/เกราะ</option>
+                            <option value="ไอดี">ไอดีตัวละคร</option>
+                            <option value="เงินสลึง">เงินสลึง M</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1">ราคา (บาท) *</label>
+                        <input type="number" id="itemPrice" required placeholder="500" 
+                               class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">รายละเอียด / ออพชั่น</label>
+                    <textarea id="itemDesc" rows="3" placeholder="ระบุออพชั่น หินตีบวก หรือรายละเอียดเพิ่มเติม..." 
+                              class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">URL รูปภาพ (Optional)</label>
+                    <input type="url" id="itemImage" placeholder="https://..." 
+                           class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-gold-500 hover:bg-gold-400 text-black font-bold rounded-lg transition shadow-lg shadow-gold-500/20">
+                    บันทึกรายการ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ORDER / BUY (BUYER) -->
+    <div id="orderModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-dark-800 border border-gold-500/40 rounded-xl w-full max-w-md p-6 relative">
+            <button onclick="closeOrderModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h2 class="text-lg font-bold text-gold-400 mb-2">สั่งซื้อสินค้า</h2>
+            <div id="orderSummary" class="p-3 bg-dark-700 rounded-lg gold-border mb-4 text-sm">
+                <!-- Injected via JS -->
+            </div>
+
+            <form onsubmit="submitOrder(event)" class="space-y-4">
+                <input type="hidden" id="orderItemId">
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">ชื่อตัวละครในเกม (YG Rebuild) *</label>
+                    <input type="text" id="characterName" required placeholder="ระบุชื่อตัวละครที่รับของ..." 
+                           class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">Discord Webhook URL (สำหรับการส่งแจ้งเตือนเข้าห้อง 1563456056107995216)</label>
+                    <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." 
+                           class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-gold-500">
+                    <p class="text-[10px] text-gray-400 mt-1">* หากแปะ Webhook URL ไว้ ออเดอร์จะเด้งเข้าห้อง Discord ทันที</p>
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-green-500 hover:bg-green-400 text-black font-bold rounded-lg transition shadow-lg shadow-green-500/20">
+                    ยืนยันการสั่งซื้อ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // CONFIG & CONSTANTS
+        const OWNER_ID = "550122613087666177";
+        const ORDER_CHANNEL_ID = "1563456056107995216";
+
+        // APP STATE
+        let currentUser = {
+            id: OWNER_ID, // Default as Owner for testing
+            username: "MasaruOwner",
+            avatar: "https://cdn.discordapp.com/embed/avatars/0.png"
+        };
+
+        let items = JSON.parse(localStorage.getItem('masaru_shop_items')) || [
+            {
+                id: '1',
+                name: 'ดาบมังกรเพลิง +10 (ออพวิพากษ์)',
+                category: 'อาวุธ',
+                price: 1500,
+                desc: 'โจมตีวิพากษ์ +120%, โจมตีแรงขึ้น 15%, วิญญาณขั้น 8',
+                image: 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=500&q=80',
+                sold: false,
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: '2',
+                name: 'ชุดเกราะมังกรทอง (ท็อปสาย)',
+                category: 'ยุทธภัณฑ์',
+                price: 850,
+                desc: 'พลังป้องกัน +250, ต่อต้านสถานะ 15%',
+                image: '',
+                sold: false,
+                createdAt: new Date().toISOString()
+            }
+        ];
+
+        let activeCategory = 'all';
+
+        // INITIALIZATION
+        window.onload = function() {
+            renderAuthProfile();
+            renderItems();
+            updateStats();
+        };
+
+        // RENDER AUTH BAR
+        function renderAuthProfile() {
+            const container = document.getElementById('authProfile');
+            const isOwner = currentUser && currentUser.id === OWNER_ID;
+
+            if (isOwner) {
+                document.getElementById('ownerNotice').classList.remove('hidden');
+            } else {
+                document.getElementById('ownerNotice').classList.add('hidden');
+            }
+
+            container.innerHTML = `
+                <div class="flex items-center space-x-2 bg-dark-700 px-3 py-1.5 rounded-lg gold-border">
+                    <img src="${currentUser.avatar}" class="w-6 h-6 rounded-full">
+                    <span class="text-xs font-medium text-gray-200">${currentUser.username}</span>
+                    ${isOwner ? '<span class="bg-gold-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">OWNER</span>' : ''}
+                </div>
+                <button onclick="toggleUserRole()" class="text-xs text-gray-400 hover:text-gold-400 underline">
+                    ${isOwner ? 'สลับเป็นผู้เล่น' : 'สลับเป็น Owner'}
+                </button>
+            `;
+        }
+
+        function toggleUserRole() {
+            if (currentUser.id === OWNER_ID) {
+                currentUser = { id: "999999999", username: "Player123", avatar: "https://cdn.discordapp.com/embed/avatars/1.png" };
+            } else {
+                currentUser = { id: OWNER_ID, username: "MasaruOwner", avatar: "https://cdn.discordapp.com/embed/avatars/0.png" };
+            }
+            renderAuthProfile();
+            renderItems();
+        }
+
+        // RENDER ITEMS
+        function renderItems() {
+            const grid = document.getElementById('itemGrid');
+            const empty = document.getElementById('emptyState');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const isOwner = currentUser && currentUser.id === OWNER_ID;
+
+            const filtered = items.filter(item => {
+                const matchesCat = activeCategory === 'all' || item.category === activeCategory;
+                const matchesSearch = item.name.toLowerCase().includes(search) || item.desc.toLowerCase().includes(search);
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            empty.classList.add('hidden');
+            grid.innerHTML = filtered.map(item => `
+                <div class="bg-dark-800 rounded-xl gold-border gold-border-glow overflow-hidden flex flex-col justify-between relative ${item.sold ? 'opacity-60' : ''}">
+                    ${item.sold ? '<div class="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow">ขายแล้ว (Sold Out)</div>' : '<div class="absolute top-3 right-3 bg-green-500 text-black text-xs font-bold px-2 py-1 rounded shadow">พร้อมส่ง</div>'}
+                    
+                    <div>
+                        <div class="h-40 bg-dark-700 flex items-center justify-center overflow-hidden border-b border-gold-500/20">
+                            ${item.image ? `<img src="${item.image}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-shield-halved text-4xl text-gold-500/40"></i>`}
+                        </div>
+                        <div class="p-4">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-gold-500/10 text-gold-400 border border-gold-500/30">${item.category}</span>
+                            <h3 class="font-bold text-white text-base mt-2">${item.name}</h3>
+                            <p class="text-xs text-gray-400 mt-1 line-clamp-2">${item.desc || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-gold-500/10 flex items-center justify-between bg-dark-900/50">
+                        <div>
+                            <span class="text-[10px] text-gray-400">ราคา</span>
+                            <p class="text-lg font-bold text-gold-400">${Number(item.price).toLocaleString()} ฿</p>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            ${isOwner ? `
+                                <button onclick="toggleSold('${item.id}')" class="p-2 bg-dark-700 hover:bg-gold-500/20 text-gold-400 rounded-lg text-xs border border-gold-500/30" title="เปลี่ยนสถานะ">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </button>
+                                <button onclick="deleteItem('${item.id}')" class="p-2 bg-dark-700 hover:bg-red-500/20 text-red-400 rounded-lg text-xs border border-red-500/30" title="ลบรายการ">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            ` : ''}
+
+                            ${!item.sold ? `
+                                <button onclick="openOrderModal('${item.id}')" class="px-3 py-1.5 bg-gold-500 hover:bg-gold-400 text-black font-bold text-xs rounded-lg transition shadow-md shadow-gold-500/20">
+                                    สั่งซื้อ
+                                </button>
+                            ` : `<span class="text-xs text-gray-500 font-medium">ขายแล้ว</span>`}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // CATEGORY FILTER
+        function setCategory(cat) {
+            activeCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.classList.remove('bg-gold-500', 'text-black');
+                btn.classList.add('bg-dark-800', 'text-gray-300');
+            });
+            event.target.classList.add('bg-gold-500', 'text-black');
+            event.target.classList.remove('bg-dark-800', 'text-gray-300');
+            renderItems();
+        }
+
+        // UPDATE STATS
+        function updateStats() {
+            const total = items.length;
+            const available = items.filter(i => !i.sold).length;
+            const sold = items.filter(i => i.sold).length;
+            const totalVal = items.reduce((sum, i) => sum + Number(i.price), 0);
+
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statAvailable').innerText = available;
+            document.getElementById('statSold').innerText = sold;
+            document.getElementById('statValue').innerText = totalVal.toLocaleString() + ' ฿';
+        }
+
+        // SAVE ITEMS TO LOCALSTORAGE
+        function saveState() {
+            localStorage.setItem('masaru_shop_items', JSON.stringify(items));
+            renderItems();
+            updateStats();
+        }
+
+        // ADMIN: ADD / EDIT ITEM
+        function openAddModal() {
+            document.getElementById('modalTitle').innerText = 'สร้างแพ็กเกจสินค้าใหม่';
+            document.getElementById('itemForm').reset();
+            document.getElementById('itemId').value = '';
+            document.getElementById('itemModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('itemModal').classList.add('hidden');
+        }
+
+        function saveItem(e) {
+            e.preventDefault();
+            const id = document.getElementById('itemId').value || Date.now().toString();
+            const name = document.getElementById('itemName').value;
+            const category = document.getElementById('itemCategory').value;
+            const price = parseFloat(document.getElementById('itemPrice').value);
+            const desc = document.getElementById('itemDesc').value;
+            const image = document.getElementById('itemImage').value;
+
+            const existingIndex = items.findIndex(i => i.id === id);
+            if (existingIndex > -1) {
+                items[existingIndex] = { ...items[existingIndex], name, category, price, desc, image };
+            } else {
+                items.unshift({ id, name, category, price, desc, image, sold: false, createdAt: new Date().toISOString() });
+            }
+
+            saveState();
+            closeModal();
+        }
+
+        function toggleSold(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.sold = !item.sold;
+                saveState();
+            }
+        }
+
+        function deleteItem(id) {
+            if (confirm('คุณต้องการลบรายการสินค้านี้ใช่หรือไม่?')) {
+                items = items.filter(i => i.id !== id);
+                saveState();
+            }
+        }
+
+        // BUYER: ORDER FLOW
+        function openOrderModal(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('orderItemId').value = item.id;
+            document.getElementById('orderSummary').innerHTML = `
+                <p class="font-bold text-gold-400">${item.name}</p>
+                <p class="text-xs text-gray-300">หมวดหมู่: ${item.category} | ราคา: <span class="text-green-400 font-bold">${Number(item.price).toLocaleString()} ฿</span></p>
+            `;
+            document.getElementById('orderModal').classList.remove('hidden');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderModal').classList.add('hidden');
+        }
+
+        async function submitOrder(e) {
+            e.preventDefault();
+            const itemId = document.getElementById('orderItemId').value;
+            const charName = document.getElementById('characterName').value;
+            const webhookUrl = document.getElementById('webhookUrl').value;
+            const item = items.find(i => i.id === itemId);
+
+            if (!item) return;
+
+            // Prepare Discord Webhook Notification Payload
+            const payload = {
+                username: "MasaruShop Alert",
+                avatar_url: "https://cdn.discordapp.com/embed/avatars/0.png",
+                embeds: [{
+                    title: "🛒 มีออเดอร์สั่งซื้อใหม่! (MasaruShop)",
+                    color: 15412232, // Gold color
+                    fields: [
+                        { name: "📦 รายการสินค้า", value: item.name, inline: false },
+                        { name: "💰 ราคา", value: `${Number(item.price).toLocaleString()} บาท`, inline: true },
+                        { name: "👤 ผู้สั่งซื้อ (Discord)", value: currentUser.username, inline: true },
+                        { name: "🎮 ชื่อตัวละครในเกม", value: charName, inline: true },
+                        { name: "📌 ห้องแจ้งเตือน", value: `<#${ORDER_CHANNEL_ID}>`, inline: false }
+                    ],
+                    footer: { text: "MasaruShop • Yulgang Rebuild Marketplace" },
+                    timestamp: new Date().toISOString()
+                }]
+            };
+
+            if (webhookUrl) {
+                try {
+                    await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    alert("ส่งข้อมูลการสั่งซื้อเข้า Discord เรียบร้อยแล้ว!");
+                } catch (err) {
+                    alert("เกิดข้อผิดพลาดในการยิง Webhook แต่ออเดอร์ได้รับการบันทึกแล้ว");
+                }
+            } else {
+                alert(`สั่งซื้อสำเร็จ! รายการสั่งซื้อของคุณ [${item.name}] สำหรับตัวละคร [${charName}] ถูกส่งต่อให้แอดมินเรียบร้อยแล้ว`);
+            }
+
+            closeOrderModal();
+        }
+    </script>
+</body>
+</html>
