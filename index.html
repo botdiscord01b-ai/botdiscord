@@ -28,7 +28,7 @@
             }
         }
     </script>
-    <!-- FontAwesome & Lucide Icons -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -48,13 +48,24 @@
             border-color: rgba(234, 179, 8, 0.8);
             box-shadow: 0 0 15px rgba(234, 179, 8, 0.2);
         }
+        /* Toast animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-animate {
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="min-h-screen flex flex-col justify-between">
+<body class="min-h-screen flex flex-col justify-between relative">
+
+    <!-- REAL-TIME TOAST NOTIFICATION CONTAINER FOR OWNER -->
+    <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col space-y-3 max-w-sm w-full pointer-events-none"></div>
 
     <!-- HEADER / NAVIGATION -->
-    <header class="bg-dark-800/90 backdrop-blur border-b border-gold-500/20 sticky top-0 z-50">
+    <header class="bg-dark-800/90 backdrop-blur border-b border-gold-500/20 sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
             <!-- Brand Logo -->
             <div class="flex items-center space-x-3">
@@ -67,9 +78,17 @@
                 </div>
             </div>
 
-            <!-- User Auth Profile Bar -->
-            <div id="authProfile" class="flex items-center space-x-3">
-                <!-- JS will inject user bar or login button here -->
+            <!-- Header Right Menu -->
+            <div class="flex items-center space-x-3">
+                <!-- Log Viewer Button (Owner Only) -->
+                <button id="logBtn" onclick="openLogModal()" class="hidden px-3 py-1.5 bg-dark-700 hover:bg-gold-500/20 text-gold-400 rounded-lg border border-gold-500/30 text-xs font-medium transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-terminal"></i>
+                    <span>System Logs</span>
+                    <span id="logBadge" class="hidden bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">0</span>
+                </button>
+
+                <!-- User Profile Bar -->
+                <div id="authProfile" class="flex items-center space-x-3"></div>
             </div>
         </div>
     </header>
@@ -78,18 +97,20 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
         
         <!-- OWNER NOTICE BANNER -->
-        <div id="ownerNotice" class="hidden mb-6 p-4 rounded-xl bg-gold-500/10 border border-gold-500/40 flex items-center justify-between">
+        <div id="ownerNotice" class="hidden mb-6 p-4 rounded-xl bg-gold-500/10 border border-gold-500/40 flex items-center justify-between flex-wrap gap-3">
             <div class="flex items-center space-x-3">
                 <span class="p-2 bg-gold-500/20 text-gold-400 rounded-lg"><i class="fa-solid fa-crown text-xl"></i></span>
                 <div>
-                    <h3 class="font-bold text-gold-400 text-sm sm:text-base">เข้าสู่ระบบในฐานะ Owner / แอดมินร้าน (ID: 550122613087666177)</h3>
-                    <p class="text-xs text-gray-300">คุณสามารถสร้างแพ็กเกจขายของ จัดการสต็อก และเปลี่ยนสถานะรายการได้</p>
+                    <h3 class="font-bold text-gold-400 text-sm sm:text-base">สถานะ: Owner / แอดมินร้าน (ID: 550122613087666177)</h3>
+                    <p class="text-xs text-gray-300">ระบบแจ้งเตือนออเดอร์ในหน้าเว็บและระบบตรวจเช็ก Log ทำงานอยู่</p>
                 </div>
             </div>
-            <button onclick="openAddModal()" class="px-4 py-2 bg-gold-500 hover:bg-gold-400 text-black font-bold rounded-lg text-sm transition flex items-center space-x-2 shadow-lg shadow-gold-500/20">
-                <i class="fa-solid fa-plus"></i>
-                <span>สร้างแพ็กสินค้า</span>
-            </button>
+            <div class="flex items-center space-x-2">
+                <button onclick="openAddModal()" class="px-4 py-2 bg-gold-500 hover:bg-gold-400 text-black font-bold rounded-lg text-sm transition flex items-center space-x-2 shadow-lg shadow-gold-500/20">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>สร้างแพ็กสินค้า</span>
+                </button>
+            </div>
         </div>
 
         <!-- STATS DASHBOARD -->
@@ -108,7 +129,7 @@
             </div>
             <div class="bg-dark-800 p-4 rounded-xl gold-border">
                 <p class="text-xs text-gray-400 mb-1">มูลค่าสินค้ารวม</p>
-                <p id="statValue" class="text-2xl font-bold gold-gradient-text">0 M</p>
+                <p id="statValue" class="text-2xl font-bold gold-gradient-text">0 ฿</p>
             </div>
         </div>
 
@@ -130,9 +151,7 @@
         </div>
 
         <!-- ITEM GRID CONTAINER -->
-        <div id="itemGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Items rendered via JavaScript -->
-        </div>
+        <div id="itemGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
         <!-- EMPTY STATE -->
         <div id="emptyState" class="hidden text-center py-16">
@@ -146,6 +165,28 @@
     <footer class="bg-dark-800 border-t border-gold-500/20 py-4 text-center text-xs text-gray-500">
         <p>© 2026 MasaruShop (มาซารุ ช็อป) - Yulgang Rebuild Marketplace. All rights reserved.</p>
     </footer>
+
+    <!-- MODAL: SYSTEM LOGS VIEWER (OWNER ONLY) -->
+    <div id="logModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-dark-800 border border-gold-500/40 rounded-xl w-full max-w-2xl p-6 relative flex flex-col max-h-[85vh]">
+            <button onclick="closeLogModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            
+            <div class="flex items-center space-x-2 mb-4">
+                <i class="fa-solid fa-terminal text-gold-400 text-lg"></i>
+                <h2 class="text-lg font-bold text-gold-400">System Activity Logs (บันทึกประวัติเว็บ)</h2>
+            </div>
+
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-xs text-gray-400">รายการ Log ทั้งหมดที่เกิดขึ้นบนหน้าเว็บ:</span>
+                <button onclick="clearLogs()" class="text-xs text-red-400 hover:text-red-300 underline"><i class="fa-solid fa-trash mr-1"></i>ล้าง Logs ทั้งหมด</button>
+            </div>
+
+            <!-- Log Terminal Container -->
+            <div id="logTerminal" class="bg-black/90 p-4 rounded-lg border border-gray-800 font-mono text-xs overflow-y-auto flex-grow space-y-2 text-gray-300 min-h-[300px]">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL: ADD / EDIT ITEM (ADMIN ONLY) -->
     <div id="itemModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
@@ -198,9 +239,7 @@
         <div class="bg-dark-800 border border-gold-500/40 rounded-xl w-full max-w-md p-6 relative">
             <button onclick="closeOrderModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             <h2 class="text-lg font-bold text-gold-400 mb-2">สั่งซื้อสินค้า</h2>
-            <div id="orderSummary" class="p-3 bg-dark-700 rounded-lg gold-border mb-4 text-sm">
-                <!-- Injected via JS -->
-            </div>
+            <div id="orderSummary" class="p-3 bg-dark-700 rounded-lg gold-border mb-4 text-sm"></div>
 
             <form onsubmit="submitOrder(event)" class="space-y-4">
                 <input type="hidden" id="orderItemId">
@@ -210,10 +249,9 @@
                            class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-300 mb-1">Discord Webhook URL (สำหรับการส่งแจ้งเตือนเข้าห้อง 1563456056107995216)</label>
+                    <label class="block text-xs font-medium text-gray-300 mb-1">Discord Webhook URL (สำหรับส่งเข้า Discord Channel 1563456056107995216)</label>
                     <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." 
                            class="w-full bg-dark-700 gold-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-gold-500">
-                    <p class="text-[10px] text-gray-400 mt-1">* หากแปะ Webhook URL ไว้ ออเดอร์จะเด้งเข้าห้อง Discord ทันที</p>
                 </div>
 
                 <button type="submit" class="w-full py-2.5 bg-green-500 hover:bg-green-400 text-black font-bold rounded-lg transition shadow-lg shadow-green-500/20">
@@ -225,13 +263,11 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // CONFIG & CONSTANTS
         const OWNER_ID = "550122613087666177";
         const ORDER_CHANNEL_ID = "1563456056107995216";
 
-        // APP STATE
         let currentUser = {
-            id: OWNER_ID, // Default as Owner for testing
+            id: OWNER_ID,
             username: "MasaruOwner",
             avatar: "https://cdn.discordapp.com/embed/avatars/0.png"
         };
@@ -246,37 +282,108 @@
                 image: 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=500&q=80',
                 sold: false,
                 createdAt: new Date().toISOString()
-            },
-            {
-                id: '2',
-                name: 'ชุดเกราะมังกรทอง (ท็อปสาย)',
-                category: 'ยุทธภัณฑ์',
-                price: 850,
-                desc: 'พลังป้องกัน +250, ต่อต้านสถานะ 15%',
-                image: '',
-                sold: false,
-                createdAt: new Date().toISOString()
             }
         ];
 
+        let logs = JSON.parse(localStorage.getItem('masaru_shop_logs')) || [];
         let activeCategory = 'all';
 
-        // INITIALIZATION
         window.onload = function() {
             renderAuthProfile();
             renderItems();
             updateStats();
+            addLog("SYSTEM", "หน้าเว็บ MasaruShop โหลดทำงานเรียบร้อย", "info");
         };
 
-        // RENDER AUTH BAR
+        // LOGGING SYSTEM
+        function addLog(type, message, level = "info") {
+            const timestamp = new Date().toLocaleTimeString('th-TH');
+            const logEntry = { id: Date.now(), timestamp, type, message, level };
+            logs.unshift(logEntry);
+            if (logs.length > 100) logs.pop(); // Keep max 100 entries
+            localStorage.setItem('masaru_shop_logs', JSON.stringify(logs));
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const terminal = document.getElementById('logTerminal');
+            if (!terminal) return;
+            if (logs.length === 0) {
+                terminal.innerHTML = `<p class="text-gray-500 italic">ยังไม่มีข้อมูล Log บันทึกในขณะนี้...</p>`;
+                return;
+            }
+
+            terminal.innerHTML = logs.map(l => {
+                let colorClass = "text-green-400";
+                if (l.level === "warn") colorClass = "text-yellow-400";
+                if (l.level === "error") colorClass = "text-red-400";
+                if (l.level === "order") colorClass = "text-cyan-400 font-bold";
+
+                return `<div class="border-b border-gray-800/60 pb-1">
+                    <span class="text-gray-500">[${l.timestamp}]</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 ${colorClass} mr-1">[${l.type}]</span>
+                    <span class="${colorClass}">${l.message}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function openLogModal() {
+            renderLogs();
+            document.getElementById('logModal').classList.remove('hidden');
+        }
+
+        function closeLogModal() {
+            document.getElementById('logModal').classList.add('hidden');
+        }
+
+        function clearLogs() {
+            if (confirm('คุณต้องการล้างประวัติ Log ทั้งหมดใช่หรือไม่?')) {
+                logs = [];
+                localStorage.setItem('masaru_shop_logs', JSON.stringify(logs));
+                renderLogs();
+            }
+        }
+
+        // IN-APP REALTIME TOAST NOTIFICATION FOR OWNER
+        function showOwnerToast(title, bodyText) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast-animate pointer-events-auto bg-dark-800 border-2 border-gold-500 text-white p-4 rounded-xl shadow-2xl flex items-start space-x-3 relative overflow-hidden';
+            
+            toast.innerHTML = `
+                <div class="p-2 bg-gold-500/20 text-gold-400 rounded-lg shrink-0">
+                    <i class="fa-solid fa-bell text-xl animate-bounce"></i>
+                </div>
+                <div class="flex-grow">
+                    <h4 class="font-bold text-gold-400 text-sm">${title}</h4>
+                    <p class="text-xs text-gray-200 mt-1">${bodyText}</p>
+                    <span class="text-[10px] text-gray-400 mt-2 block">แจ้งเตือนสดบนหน้าเว็บ</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-white text-xs p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 7 seconds
+            setTimeout(() => {
+                if (toast) toast.remove();
+            }, 7000);
+        }
+
+        // AUTH & PROFILE
         function renderAuthProfile() {
             const container = document.getElementById('authProfile');
+            const logBtn = document.getElementById('logBtn');
             const isOwner = currentUser && currentUser.id === OWNER_ID;
 
             if (isOwner) {
                 document.getElementById('ownerNotice').classList.remove('hidden');
+                logBtn.classList.remove('hidden');
             } else {
                 document.getElementById('ownerNotice').classList.add('hidden');
+                logBtn.classList.add('hidden');
             }
 
             container.innerHTML = `
@@ -294,8 +401,10 @@
         function toggleUserRole() {
             if (currentUser.id === OWNER_ID) {
                 currentUser = { id: "999999999", username: "Player123", avatar: "https://cdn.discordapp.com/embed/avatars/1.png" };
+                addLog("AUTH", "สลับโหมดเข้าสู่มุมมองผู้เล่นทั่วไป", "info");
             } else {
                 currentUser = { id: OWNER_ID, username: "MasaruOwner", avatar: "https://cdn.discordapp.com/embed/avatars/0.png" };
+                addLog("AUTH", "สลับโหมดเข้าสู่ระบบในฐานะ Owner", "warn");
             }
             renderAuthProfile();
             renderItems();
@@ -363,7 +472,6 @@
             `).join('');
         }
 
-        // CATEGORY FILTER
         function setCategory(cat) {
             activeCategory = cat;
             document.querySelectorAll('.cat-btn').forEach(btn => {
@@ -375,7 +483,6 @@
             renderItems();
         }
 
-        // UPDATE STATS
         function updateStats() {
             const total = items.length;
             const available = items.filter(i => !i.sold).length;
@@ -388,14 +495,13 @@
             document.getElementById('statValue').innerText = totalVal.toLocaleString() + ' ฿';
         }
 
-        // SAVE ITEMS TO LOCALSTORAGE
         function saveState() {
             localStorage.setItem('masaru_shop_items', JSON.stringify(items));
             renderItems();
             updateStats();
         }
 
-        // ADMIN: ADD / EDIT ITEM
+        // ADMIN ITEM CONTROL
         function openAddModal() {
             document.getElementById('modalTitle').innerText = 'สร้างแพ็กเกจสินค้าใหม่';
             document.getElementById('itemForm').reset();
@@ -419,8 +525,10 @@
             const existingIndex = items.findIndex(i => i.id === id);
             if (existingIndex > -1) {
                 items[existingIndex] = { ...items[existingIndex], name, category, price, desc, image };
+                addLog("ITEM_EDIT", `แก้ไขรายการสินค้า: [${name}] ราคา ${price} บาท`, "warn");
             } else {
                 items.unshift({ id, name, category, price, desc, image, sold: false, createdAt: new Date().toISOString() });
+                addLog("ITEM_CREATE", `สร้างแพ็กเกจสินค้าใหม่: [${name}] ราคา ${price} บาท`, "info");
             }
 
             saveState();
@@ -432,17 +540,20 @@
             if (item) {
                 item.sold = !item.sold;
                 saveState();
+                addLog("ITEM_STATUS", `เปลี่ยนสถานะสินค้า [${item.name}] เป็น: ${item.sold ? 'ขายแล้ว' : 'พร้อมขาย'}`, "info");
             }
         }
 
         function deleteItem(id) {
+            const item = items.find(i => i.id === id);
             if (confirm('คุณต้องการลบรายการสินค้านี้ใช่หรือไม่?')) {
                 items = items.filter(i => i.id !== id);
                 saveState();
+                if (item) addLog("ITEM_DELETE", `ลบรายการสินค้า: [${item.name}]`, "error");
             }
         }
 
-        // BUYER: ORDER FLOW
+        // BUYER: ORDER SUBMISSION
         function openOrderModal(id) {
             const item = items.find(i => i.id === id);
             if (!item) return;
@@ -468,40 +579,43 @@
 
             if (!item) return;
 
-            // Prepare Discord Webhook Notification Payload
-            const payload = {
-                username: "MasaruShop Alert",
-                avatar_url: "https://cdn.discordapp.com/embed/avatars/0.png",
-                embeds: [{
-                    title: "🛒 มีออเดอร์สั่งซื้อใหม่! (MasaruShop)",
-                    color: 15412232, // Gold color
-                    fields: [
-                        { name: "📦 รายการสินค้า", value: item.name, inline: false },
-                        { name: "💰 ราคา", value: `${Number(item.price).toLocaleString()} บาท`, inline: true },
-                        { name: "👤 ผู้สั่งซื้อ (Discord)", value: currentUser.username, inline: true },
-                        { name: "🎮 ชื่อตัวละครในเกม", value: charName, inline: true },
-                        { name: "📌 ห้องแจ้งเตือน", value: `<#${ORDER_CHANNEL_ID}>`, inline: false }
-                    ],
-                    footer: { text: "MasaruShop • Yulgang Rebuild Marketplace" },
-                    timestamp: new Date().toISOString()
-                }]
-            };
+            // 1. Record Order Log
+            addLog("ORDER_NEW", `ออเดอร์ใหม่! ไอเทม: [${item.name}] | ตัวละคร: [${charName}] | สั่งโดย: ${currentUser.username}`, "order");
 
+            // 2. Trigger In-App Notification (Toast) for Owner
+            showOwnerToast(
+                `🛒 มีออเดอร์ใหม่เข้ามา!`,
+                `รายการ: <b class="text-gold-400">${item.name}</b><br>ตัวละครรับของ: <b class="text-green-400">${charName}</b> (${Number(item.price).toLocaleString()} ฿)`
+            );
+
+            // 3. Optional Discord Webhook Notification
             if (webhookUrl) {
                 try {
                     await fetch(webhookUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify({
+                            username: "MasaruShop Alert",
+                            embeds: [{
+                                title: "🛒 มีออเดอร์สั่งซื้อใหม่! (MasaruShop)",
+                                color: 15412232,
+                                fields: [
+                                    { name: "📦 รายการสินค้า", value: item.name, inline: false },
+                                    { name: "💰 ราคา", value: `${Number(item.price).toLocaleString()} บาท`, inline: true },
+                                    { name: "🎮 ชื่อตัวละครในเกม", value: charName, inline: true },
+                                    { name: "📌 ห้องแจ้งเตือน", value: `<#${ORDER_CHANNEL_ID}>`, inline: false }
+                                ],
+                                timestamp: new Date().toISOString()
+                            }]
+                        })
                     });
-                    alert("ส่งข้อมูลการสั่งซื้อเข้า Discord เรียบร้อยแล้ว!");
+                    addLog("WEBHOOK", "ส่งการแจ้งเตือนเข้า Discord Webhook สำเร็จ", "info");
                 } catch (err) {
-                    alert("เกิดข้อผิดพลาดในการยิง Webhook แต่ออเดอร์ได้รับการบันทึกแล้ว");
+                    addLog("WEBHOOK_ERROR", "ไม่สามารถส่ง Webhook เข้า Discord ได้", "error");
                 }
-            } else {
-                alert(`สั่งซื้อสำเร็จ! รายการสั่งซื้อของคุณ [${item.name}] สำหรับตัวละคร [${charName}] ถูกส่งต่อให้แอดมินเรียบร้อยแล้ว`);
             }
 
+            alert(`สั่งซื้อสำเร็จ! ออเดอร์ไอเทม [${item.name}] สำหรับตัวละคร [${charName}] บันทึกเรียบร้อยแล้ว`);
             closeOrderModal();
         }
     </script>
