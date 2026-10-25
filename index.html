@@ -15,7 +15,6 @@
             <span class="bg-amber-500/20 text-amber-400 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-500/30">Yulgang Drops</span>
         </div>
 
-        <!-- ส่วนแสดงข้อมูลผู้ใช้ / ปุ่ม Login และปุ่มแอดมิน -->
         <div class="flex items-center space-x-3">
             <div id="admin-menu-btn-container"></div>
             
@@ -30,25 +29,23 @@
 
     <!-- Main Content -->
     <main class="container mx-auto px-4 py-8 flex-grow">
-        <!-- Banner Header (เปลี่ยนคำใหม่ตามที่ขอ) -->
         <div class="bg-gradient-to-r from-amber-900/40 via-gray-800 to-indigo-900/40 border border-amber-500/30 rounded-2xl p-6 md:p-10 mb-10 text-center shadow-xl">
             <h1 class="text-3xl md:text-5xl font-extrabold text-amber-300 mb-3 drop-shadow">ศูนย์รวมวัตถุดิบและของดรอปจากมอนสเตอร์</h1>
             <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ฟาร์มเอง ขายจริง ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
         </div>
 
-        <!-- ส่วนหัวข้อสินค้า + ปุ่มสร้างแพ็กเกจ -->
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-amber-400">🛒 รายการของดรอปจากมอนสเตอร์</h2>
             <div id="admin-action-btn"></div>
         </div>
 
-        <!-- รายการสินค้า -->
+        <!-- Grid สินค้า -->
         <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- สินค้าจะถูกเติมเข้ามาที่นี่อัตโนมัติ -->
+            <div class="text-center col-span-3 text-gray-400 py-10">กำลังโหลดข้อมูลสินค้า...</div>
         </div>
     </main>
 
-    <!-- Modal สำหรับสร้างแพ็กเกจใหม่ -->
+    <!-- Modal สร้างแพ็กเกจ -->
     <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-gray-800 border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-amber-300 mb-4">➕ เพิ่มรายการของดรอปใหม่</h3>
@@ -90,22 +87,7 @@
     <!-- Script จัดการระบบทั้งหมด -->
     <script>
         const OWNER_DISCORD_ID = "550122613087666177";
-
-        // รายการของดรอปเริ่มต้น
-        const defaultProducts = [
-            { id: 1, name: "หินออฟชั่นพลังโจมตี (ชิ้น)", desc: "หินดรอปจากมอนสเตอร์ระดับสูง สเตตัสสวยพร้อมใช้", price: 35, icon: "💎" },
-            { id: 2, name: "คัมภีร์วิชาตัวเบา", desc: "ไอเทมดรอปหายากสำหรับอัปเกรดสกิลเคลื่อนที่", price: 80, icon: "📜" },
-            { id: 3, name: "ขยะดรอปสะสม (แพ็ก 100 ชิ้น)", desc: "ไอเทมขยะจากมอนสเตอร์ นำไปขายต่อหรือทำเควสได้คุ้มๆ", price: 20, icon: "📦" }
-        ];
-
-        function getProducts() {
-            const saved = localStorage.getItem('yulgang_drop_products');
-            return saved ? JSON.parse(saved) : defaultProducts;
-        }
-
-        function saveProducts(products) {
-            localStorage.setItem('yulgang_drop_products', JSON.stringify(products));
-        }
+        let productsList = [];
 
         const urlParams = new URLSearchParams(window.location.search);
         const userParam = urlParams.get('user');
@@ -157,12 +139,28 @@
             `;
         }
 
+        // โหลดข้อมูลสินค้าจาก Database API
+        async function fetchProducts() {
+            try {
+                const res = await fetch('/api/products');
+                productsList = await res.json();
+                renderProducts();
+            } catch (err) {
+                console.error("Failed to fetch products", err);
+                document.getElementById('product-grid').innerHTML = `<div class="text-center col-span-3 text-red-400 py-10">ไม่สามารถโหลดข้อมูลสินค้าได้</div>`;
+            }
+        }
+
         function renderProducts() {
-            const products = getProducts();
             const grid = document.getElementById('product-grid');
             grid.innerHTML = '';
 
-            products.forEach(p => {
+            if (productsList.length === 0) {
+                grid.innerHTML = `<div class="text-center col-span-3 text-gray-400 py-10">ยังไม่มีสินค้าในระบบ</div>`;
+                return;
+            }
+
+            productsList.forEach(p => {
                 let deleteBtnHtml = '';
                 if (isOwner) {
                     deleteBtnHtml = `
@@ -204,14 +202,13 @@
             document.getElementById('create-modal').classList.add('hidden');
         }
 
-        function handleCreateProduct(event) {
+        async function handleCreateProduct(event) {
             event.preventDefault();
             const name = document.getElementById('p-name').value;
             const desc = document.getElementById('p-desc').value;
             const price = Number(document.getElementById('p-price').value);
             const icon = document.getElementById('p-icon').value;
 
-            const products = getProducts();
             const newProduct = {
                 id: Date.now(),
                 name,
@@ -220,21 +217,32 @@
                 icon
             };
 
-            products.push(newProduct);
-            saveProducts(products);
+            productsList.push(newProduct);
+            await saveProductsToDB();
             closeModal();
             document.getElementById('create-product-form').reset();
             renderProducts();
             alert('🎉 เพิ่มรายการของดรอปใหม่สำเร็จ!');
         }
 
-        function deleteProduct(id) {
+        async function deleteProduct(id) {
             if (confirm('⚠️ คุณแน่ใจหรือไม่ที่จะลบรายการนี้?')) {
-                let products = getProducts();
-                products = products.filter(p => p.id !== id);
-                saveProducts(products);
+                productsList = productsList.filter(p => p.id !== id);
+                await saveProductsToDB();
                 renderProducts();
                 alert('🗑️ ลบรายการเรียบร้อยแล้ว');
+            }
+        }
+
+        async function saveProductsToDB() {
+            try {
+                await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ products: productsList })
+                });
+            } catch (err) {
+                console.error("Failed to save to database", err);
             }
         }
 
@@ -254,7 +262,8 @@
             window.location.reload();
         }
 
-        renderProducts();
+        // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
+        fetchProducts();
     </script>
 </body>
 </html>
