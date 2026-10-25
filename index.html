@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MasaruShop - Yulgang Online Marketplace</title>
+    <title>MasaruShop - Yulgang Drop Items</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col justify-between">
@@ -12,12 +12,11 @@
     <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center shadow-lg sticky top-0 z-50">
         <div class="flex items-center space-x-3">
             <span class="text-2xl font-black text-amber-400 tracking-wider">⚔️ MasaruShop</span>
-            <span class="bg-amber-500/20 text-amber-400 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-500/30">Yulgang Store</span>
+            <span class="bg-amber-500/20 text-amber-400 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-500/30">Yulgang Drops</span>
         </div>
 
         <!-- ส่วนแสดงข้อมูลผู้ใช้ / ปุ่ม Login และปุ่มแอดมิน -->
         <div class="flex items-center space-x-3">
-            <!-- ปุ่มเปิดหน้าแอดมิน (ซ่อนไว้ก่อน จะแสดงเฉพาะ Owner ID เท่านั้น) -->
             <div id="admin-menu-btn-container"></div>
             
             <div id="auth-container">
@@ -31,48 +30,48 @@
 
     <!-- Main Content -->
     <main class="container mx-auto px-4 py-8 flex-grow">
-        <!-- Banner Header -->
+        <!-- Banner Header (เปลี่ยนคำใหม่ตามที่ขอ) -->
         <div class="bg-gradient-to-r from-amber-900/40 via-gray-800 to-indigo-900/40 border border-amber-500/30 rounded-2xl p-6 md:p-10 mb-10 text-center shadow-xl">
-            <h1 class="text-3xl md:text-5xl font-extrabold text-amber-300 mb-3 drop-shadow">ศูนย์รวมไอเทมและ M เกม Yulgang</h1>
-            <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ซื้อขายไอเทม ยาคลั่ง หญ้าเทพ และเงิน M ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
+            <h1 class="text-3xl md:text-5xl font-extrabold text-amber-300 mb-3 drop-shadow">ศูนย์รวมวัตถุดิบและของดรอปจากมอนสเตอร์</h1>
+            <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ฟาร์มเอง ขายจริง ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
         </div>
 
-        <!-- ส่วนหัวข้อสินค้า + ปุ่มสร้างแพ็กเกจ (ถ้าเป็น Owner จะโชว์ปุ่มเพิ่ม) -->
+        <!-- ส่วนหัวข้อสินค้า + ปุ่มสร้างแพ็กเกจ -->
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-amber-400">🛒 รายการสินค้าทั้งหมด</h2>
+            <h2 class="text-2xl font-bold text-amber-400">🛒 รายการของดรอปจากมอนสเตอร์</h2>
             <div id="admin-action-btn"></div>
         </div>
 
-        <!-- รายการสินค้า Yulgang (เรนเดอร์ผ่าน JavaScript รองรับการเพิ่ม/ลบแพ็กเกจ) -->
+        <!-- รายการสินค้า -->
         <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- สินค้าจะถูกเติมเข้ามาที่นี่อัตโนมัติ -->
         </div>
     </main>
 
-    <!-- Modal สำหรับสร้างแพ็กเกจใหม่ (ซ่อนไว้ก่อน) -->
+    <!-- Modal สำหรับสร้างแพ็กเกจใหม่ -->
     <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-gray-800 border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="text-xl font-bold text-amber-300 mb-4">➕ สร้างแพ็กเกจสินค้าใหม่</h3>
+            <h3 class="text-xl font-bold text-amber-300 mb-4">➕ เพิ่มรายการของดรอปใหม่</h3>
             <form id="create-product-form" onsubmit="handleCreateProduct(event)">
                 <div class="mb-4">
-                    <label class="block text-gray-300 text-sm mb-1">ชื่อแพ็กเกจ / สินค้า</label>
-                    <input type="text" id="p-name" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น เงิน M 500M">
+                    <label class="block text-gray-300 text-sm mb-1">ชื่อไอเทม / ของดรอป</label>
+                    <input type="text" id="p-name" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น หินออฟชั่นพลังโจมตี +3">
                 </div>
                 <div class="mb-4">
-                    <label class="block text-gray-300 text-sm mb-1">รายละเอียดสินค้า</label>
-                    <textarea id="p-desc" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="อธิบายรายละเอียดสินค้า..."></textarea>
+                    <label class="block text-gray-300 text-sm mb-1">รายละเอียด</label>
+                    <textarea id="p-desc" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="ระบุประเภทมอนเตอร์หรือรายละเอียดไอเทม..."></textarea>
                 </div>
                 <div class="mb-4">
                     <label class="block text-gray-300 text-sm mb-1">ราคา (บาท)</label>
-                    <input type="number" id="p-price" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น 250">
+                    <input type="number" id="p-price" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น 35">
                 </div>
                 <div class="mb-6">
-                    <label class="block text-gray-300 text-sm mb-1">ประเภทไอคอน / หมวดหมู่</label>
+                    <label class="block text-gray-300 text-sm mb-1">ไอคอนหมวดหมู่</label>
                     <select id="p-icon" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500">
-                        <option value="💰">💰 เงิน M (Gold)</option>
-                        <option value="🧪">🧪 ยาคลั่ง / บัฟ</option>
-                        <option value="🥋">🥋 ชุดคลุม / แรร์ไอเทม</option>
-                        <option value="⚔️">⚔️ อาวุธ / เครื่องประดับ</option>
+                        <option value="💎">💎 หินแรร์ / ออฟชั่น</option>
+                        <option value="📜">📜 ตำรา / คัมภีร์</option>
+                        <option value="🛡️">🛡️ อุปกรณ์ดรอป</option>
+                        <option value="📦">📦 ขยะดรอป / ของสะสม</option>
                     </select>
                 </div>
                 <div class="flex justify-end space-x-3">
@@ -85,31 +84,29 @@
 
     <!-- Footer -->
     <footer class="bg-gray-800 border-t border-gray-700 py-6 text-center text-gray-400 text-sm mt-12">
-        &copy; 2026 MasaruShop - Yulgang Marketplace. All rights reserved.
+        &copy; 2026 MasaruShop - Yulgang Drop Items. All rights reserved.
     </footer>
 
     <!-- Script จัดการระบบทั้งหมด -->
     <script>
         const OWNER_DISCORD_ID = "550122613087666177";
 
-        // รายการสินค้าเริ่มต้น (ถ้ายังไม่มีใน localStorage)
+        // รายการของดรอปเริ่มต้น
         const defaultProducts = [
-            { id: 1, name: "เงิน M โยกัง (100 M)", desc: "เงิน M สด พร้อมส่งมอบในเกม สะดวกรวดเร็ว ปลอดภัย", price: 50, icon: "💰" },
-            { id: 2, name: "ชุดยาคลั่งตระกูลเทพ (100 เม็ด)", desc: "เพิ่มพลังโจมตีและป้องกัน ปลุกพลังตัวละครเวลไวเวลตึง", price: 120, icon: "🧪" },
-            { id: 3, name: "ชุดคลุมจอมยุทธ์แรร์", desc: "ชุดคลุมหล่อๆ เท่ๆ สเตตัสเสริมออฟชั่นพิเศษสุดแรร์", price: 350, icon: "🥋" }
+            { id: 1, name: "หินออฟชั่นพลังโจมตี (ชิ้น)", desc: "หินดรอปจากมอนสเตอร์ระดับสูง สเตตัสสวยพร้อมใช้", price: 35, icon: "💎" },
+            { id: 2, name: "คัมภีร์วิชาตัวเบา", desc: "ไอเทมดรอปหายากสำหรับอัปเกรดสกิลเคลื่อนที่", price: 80, icon: "📜" },
+            { id: 3, name: "ขยะดรอปสะสม (แพ็ก 100 ชิ้น)", desc: "ไอเทมขยะจากมอนสเตอร์ นำไปขายต่อหรือทำเควสได้คุ้มๆ", price: 20, icon: "📦" }
         ];
 
-        // โหลดข้อมูลสินค้าจาก localStorage หรือใช้ค่าเริ่มต้น
         function getProducts() {
-            const saved = localStorage.getItem('yulgang_products');
+            const saved = localStorage.getItem('yulgang_drop_products');
             return saved ? JSON.parse(saved) : defaultProducts;
         }
 
         function saveProducts(products) {
-            localStorage.setItem('yulgang_products', JSON.stringify(products));
+            localStorage.setItem('yulgang_drop_products', JSON.stringify(products));
         }
 
-        // 1. ตรวจสอบข้อมูล User จาก URL หลัง OAuth Callback
         const urlParams = new URLSearchParams(window.location.search);
         const userParam = urlParams.get('user');
 
@@ -123,7 +120,6 @@
             }
         }
 
-        // 2. ตรวจสอบสถานะการล็อกอินและสิทธิ์ Owner
         const savedUser = localStorage.getItem('discord_user');
         const authContainer = document.getElementById('auth-container');
         const adminActionBtn = document.getElementById('admin-action-btn');
@@ -135,12 +131,10 @@
                 ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` 
                 : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-            // เช็กว่าเป็น Owner หรือไม่
             if (user.id === OWNER_DISCORD_ID) {
                 isOwner = true;
             }
 
-            // แสดงโปรไฟล์ผู้ใช้ + ปุ่มออกจากระบบ
             authContainer.innerHTML = `
                 <div class="flex items-center space-x-3">
                     <div class="flex items-center space-x-2 bg-gray-700/80 px-3 py-1.5 rounded-full border border-gray-600 shadow">
@@ -155,16 +149,14 @@
             `;
         }
 
-        // ถ้าเป็น Owner ให้แสดงปุ่มสร้างแพ็กเกจสินค้าที่หน้าเว็บ
         if (isOwner) {
             adminActionBtn.innerHTML = `
                 <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2 shadow-lg">
-                    <span>➕ สร้างแพ็กเกจสินค้า</span>
+                    <span>➕ เพิ่มรายการของดรอป</span>
                 </button>
             `;
         }
 
-        // 3. เรนเดอร์รายการสินค้าลงหน้าเว็บ
         function renderProducts() {
             const products = getProducts();
             const grid = document.getElementById('product-grid');
@@ -175,7 +167,7 @@
                 if (isOwner) {
                     deleteBtnHtml = `
                         <button onclick="deleteProduct(${p.id})" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">
-                            🗑️ ลบแพ็กเกจ
+                            🗑️ ลบ
                         </button>
                     `;
                 }
@@ -185,7 +177,7 @@
                         <div>
                             <div class="bg-gradient-to-br from-amber-600/80 to-gray-900 h-44 rounded-lg mb-4 flex flex-col items-center justify-center text-amber-100 shadow-inner">
                                 <span class="text-5xl mb-1">${p.icon}</span>
-                                <span class="font-black text-lg text-amber-300 mt-1">${p.name}</span>
+                                <span class="font-black text-sm text-amber-300 mt-1">${p.name}</span>
                             </div>
                             <h3 class="text-xl font-bold text-amber-300">${p.name}</h3>
                             <p class="text-gray-400 text-sm mt-2">${p.desc}</p>
@@ -202,7 +194,6 @@
             });
         }
 
-        // 4. ฟังก์ชันจัดการ Modal สร้างสินค้า
         function openModal() {
             document.getElementById('create-modal').classList.remove('hidden');
             document.getElementById('create-modal').classList.add('flex');
@@ -213,7 +204,6 @@
             document.getElementById('create-modal').classList.add('hidden');
         }
 
-        // 5. ฟังก์ชันบันทึกสินค้าใหม่ (สร้างแพ็กเกจ)
         function handleCreateProduct(event) {
             event.preventDefault();
             const name = document.getElementById('p-name').value;
@@ -223,7 +213,7 @@
 
             const products = getProducts();
             const newProduct = {
-                id: Date.now(), // ใช้ Timestamp เป็น ID ป้องกันซ้ำ
+                id: Date.now(),
                 name,
                 desc,
                 price,
@@ -235,21 +225,19 @@
             closeModal();
             document.getElementById('create-product-form').reset();
             renderProducts();
-            alert('🎉 สร้างแพ็กเกจสินค้าใหม่สำเร็จ!');
+            alert('🎉 เพิ่มรายการของดรอปใหม่สำเร็จ!');
         }
 
-        // 6. ฟังก์ชันลบแพ็กเกจสินค้า
         function deleteProduct(id) {
-            if (confirm('⚠️ คุณแน่ใจหรือไม่ที่จะลบแพ็กเกจสินค้านี้?')) {
+            if (confirm('⚠️ คุณแน่ใจหรือไม่ที่จะลบรายการนี้?')) {
                 let products = getProducts();
                 products = products.filter(p => p.id !== id);
                 saveProducts(products);
                 renderProducts();
-                alert('🗑️ ลบแพ็กเกจสินค้าเรียบร้อยแล้ว');
+                alert('🗑️ ลบรายการเรียบร้อยแล้ว');
             }
         }
 
-        // 7. ฟังก์ชันกดซื้อสินค้า
         function buyItem(itemName) {
             const user = localStorage.getItem('discord_user');
             if (!user) {
@@ -261,13 +249,11 @@
             }
         }
 
-        // 8. ฟังก์ชันออกจากระบบ
         function logout() {
             localStorage.removeItem('discord_user');
             window.location.reload();
         }
 
-        // รันฟังก์ชันแสดงผลสินค้าตอนโหลดหน้าเว็บ
         renderProducts();
     </script>
 </body>
