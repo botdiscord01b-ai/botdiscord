@@ -3,77 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MasaruShop</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-            margin: 0;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .container {
-            background-color: #1e293b;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
-        }
-        h1 {
-            margin-bottom: 20px;
-            color: #38bdf8;
-        }
-    </style>
+    <title>MasaruShop Marketplace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col justify-between">
 
-    <div class="container">
-        <h1>MasaruShop Marketplace</h1>
-        <p>ยินดีต้อนรับสู่ร้านค้าออนไลน์ กรุณาเข้าสู่ระบบด้วยบัญชี Discord ของคุณ</p>
-
-        <!-- ปุ่มสำหรับกด ล็อกอินด้วย Discord -->
-        <a href="/api/login" id="login-btn" style="background-color: #5865F2; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 15px;">
-          Login with Discord
-        </a>
-
-        <!-- ส่วนแสดงผลเมื่อล็อกอินสำเร็จ -->
-        <div id="user-profile" style="display: none; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; background: #334155; padding: 10px; border-radius: 8px;">
-          <img id="user-avatar" src="" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;" />
-          <span id="user-name" style="font-weight: bold; color: #f1f5f9;"></span>
+    <!-- Header / Navbar -->
+    <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <span class="text-2xl font-bold text-blue-400">🛍 MasaruShop</span>
         </div>
-    </div>
 
+        <!-- ส่วนแสดงข้อมูลผู้ใช้ / ปุ่ม Login -->
+        <div id="auth-container">
+            <!-- จะถูกแทนที่ด้วย JavaScript ด้านล่าง -->
+            <a href="/api/login" id="login-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition duration-200 flex items-center space-x-2">
+                <span>Login with Discord</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8 flex-grow">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-white mb-2">ยินดีต้อนรับสู่ MasaruShop Marketplace</h1>
+            <p class="text-gray-400">แหล่งรวมสินค้าดิจิทัลและไอเทมสุดพิเศษ ยืนยันตัวตนด้วยบัญชี Discord ของคุณ</p>
+        </div>
+
+        <!-- รายการสินค้าจำลอง (Storefront) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- สินค้าที่ 1 -->
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="bg-gray-700 h-40 rounded-lg mb-4 flex items-center justify-center text-gray-500">รูปสินค้า 1</div>
+                    <h3 class="text-lg font-bold text-white">Discord Nitro (1 Month)</h3>
+                    <p class="text-gray-400 text-sm mt-1">อัพเกรดบัญชี Discord ของคุณให้ใช้งานฟีเจอร์พิเศษได้เต็มที่</p>
+                </div>
+                <div class="mt-6 flex items-center justify-between">
+                    <span class="text-blue-400 font-bold text-lg">150 บาท</span>
+                    <button onclick="alert('กรุณาล็อกอินก่อนซื้อสินค้า')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm transition">ซื้อเลย</button>
+                </div>
+            </div>
+
+            <!-- สินค้าที่ 2 -->
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="bg-gray-700 h-40 rounded-lg mb-4 flex items-center justify-center text-gray-500">รูปสินค้า 2</div>
+                    <h3 class="text-lg font-bold text-white">VIP Server Role</h3>
+                    <p class="text-gray-400 text-sm mt-1">ยศพิเศษพร้อมสิทธิประโยชน์มากมายในคอมมูนิตี้ของเรา</p>
+                </div>
+                <div class="mt-6 flex items-center justify-between">
+                    <span class="text-blue-400 font-bold text-lg">99 บาท</span>
+                    <button onclick="alert('กรุณาล็อกอินก่อนซื้อสินค้า')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm transition">ซื้อเลย</button>
+                </div>
+            </div>
+
+            <!-- สินค้าที่ 3 -->
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="bg-gray-700 h-40 rounded-lg mb-4 flex items-center justify-center text-gray-500">รูปสินค้า 3</div>
+                    <h3 class="text-lg font-bold text-white">Custom Bot Hosting</h3>
+                    <p class="text-gray-400 text-sm mt-1">บริการโฮสติ้งบอร์ด Discord เปิดใช้งานตลอด 24 ชั่วโมง</p>
+                </div>
+                <div class="mt-6 flex items-center justify-between">
+                    <span class="text-blue-400 font-bold text-lg">250 บาท</span>
+                    <button onclick="alert('กรุณาล็อกอินก่อนซื้อสินค้า')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm transition">ซื้อเลย</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 border-t border-gray-700 py-4 text-center text-gray-500 text-sm">
+        &copy; 2026 MasaruShop. All rights reserved.
+    </footer>
+
+    <!-- Script จัดการการล็อกอิน -->
     <script>
-      // ดึงข้อมูลผู้ใช้จาก URL Parameter หลังจาก Redirect กลับมา
-      const urlParams = new URLSearchParams(window.location.search);
-      const userParam = urlParams.get('user');
+        // 1. ตรวจสอบว่ามีข้อมูลผู้ใช้ส่งกลับมาจาก URL หลังล็อกอินสำเร็จหรือไม่
+        const urlParams = new URLSearchParams(window.location.search);
+        const userParam = urlParams.get('user');
 
-      if (userParam) {
-        try {
-          const user = JSON.parse(decodeURIComponent(userParam));
-
-          // ซ่อนปุ่ม Login แล้วแสดงรูปกับชื่อผู้ใช้แทน
-          document.getElementById('login-btn').style.display = 'none';
-          document.getElementById('user-profile').style.display = 'flex';
-          document.getElementById('user-name').innerText = user.username;
-          
-          // สร้างลิงก์รูปโปรไฟล์ Discord
-          const avatarUrl = user.avatar 
-            ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
-            : 'https://cdn.discordapp.com/embed/avatars/0.png';
-          document.getElementById('user-avatar').src = avatarUrl;
-        } catch (e) {
-          console.error("Failed to parse user data", e);
+        if (userParam) {
+            try {
+                // แปลงข้อมูลผู้ใช้และเก็บลง localStorage
+                const userData = JSON.parse(userParam);
+                localStorage.setItem('discord_user', JSON.stringify(userData));
+                // ล้าง URL ให้สะอาด (เอา Query Param ออก)
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (e) {
+                console.error("Failed to parse user data", e);
+            }
         }
-      }
-    </script>
 
+        // 2. เช็กสถานะจาก localStorage เพื่อแสดงผล UI
+        const savedUser = localStorage.getItem('discord_user');
+        const authContainer = document.getElementById('auth-container');
+
+        if (savedUser) {
+            const user = JSON.parse(savedUser);
+            // สร้างรูป Avatar (ถ้าไม่มีรูป จะใช้รูป default ของ Discord)
+            const avatarUrl = user.avatar 
+                ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` 
+                : 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+            // เปลี่ยนหน้าตา Navbar ให้แสดงโปรไฟล์ + ปุ่ม Logout
+            authContainer.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 bg-gray-700/50 px-3 py-1.5 rounded-full border border-gray-600">
+                        <img src="${avatarUrl}" alt="Avatar" class="w-8 h-8 rounded-full">
+                        <span class="font-medium text-sm text-gray-200">${user.username}</span>
+                    </div>
+                    <button onclick="logout()" class="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition duration-200">
+                        ออกจากระบบ
+                    </button>
+                </div>
+            `;
+        }
+
+        // 3. ฟังก์ชันออกจากระบบ
+        function logout() {
+            localStorage.removeItem('discord_user');
+            window.location.reload();
+        }
+    </script>
 </body>
 </html>
