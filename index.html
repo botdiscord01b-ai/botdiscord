@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MasaruShop Marketplace</title>
+    <title>MasaruShop - Yulgang Online Marketplace</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col justify-between">
 
     <!-- Header / Navbar -->
-    <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center">
+    <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center shadow-lg sticky top-0 z-50">
         <div class="flex items-center space-x-3">
-            <span class="text-2xl font-bold text-blue-400">🛍 MasaruShop</span>
+            <span class="text-2xl font-black text-amber-400 tracking-wider">⚔️ MasaruShop</span>
+            <span class="bg-amber-500/20 text-amber-400 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-500/30">Yulgang Store</span>
         </div>
 
         <!-- ส่วนแสดงข้อมูลผู้ใช้ / ปุ่ม Login -->
         <div id="auth-container">
-            <!-- จะถูกแทนที่ด้วย JavaScript ด้านล่าง -->
-            <a href="/api/login" id="login-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition duration-200 flex items-center space-x-2">
+            <a href="/api/login" id="login-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition duration-200 flex items-center space-x-2 shadow-md">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
                 <span>Login with Discord</span>
             </a>
         </div>
@@ -25,94 +26,102 @@
 
     <!-- Main Content -->
     <main class="container mx-auto px-4 py-8 flex-grow">
-        <div class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-white mb-2">ยินดีต้อนรับสู่ MasaruShop Marketplace</h1>
-            <p class="text-gray-400">แหล่งรวมสินค้าดิจิทัลและไอเทมสุดพิเศษ ยืนยันตัวตนด้วยบัญชี Discord ของคุณ</p>
+        <!-- Banner Header -->
+        <div class="bg-gradient-to-r from-amber-900/40 via-gray-800 to-indigo-900/40 border border-amber-500/30 rounded-2xl p-6 md:p-10 mb-10 text-center shadow-xl">
+            <h1 class="text-3xl md:text-5xl font-extrabold text-amber-300 mb-3 drop-shadow">ศูนย์รวมไอเทมและ M เกม Yulgang</h1>
+            <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ซื้อขายไอเทม ยาคลั่ง หญ้าเทพ และเงิน M ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
         </div>
 
-        <!-- รายการสินค้าจำลอง (Storefront) -->
+        <!-- รายการสินค้า Yulgang -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- สินค้าที่ 1 -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 flex flex-col justify-between">
+            <!-- สินค้าที่ 1: เงิน M -->
+            <div class="bg-gray-800 border border-gray-700 hover:border-amber-500/50 rounded-xl p-5 flex flex-col justify-between transition duration-300 shadow-lg">
                 <div>
-                    <div class="bg-gray-700 h-40 rounded-lg mb-4 flex items-center justify-center text-gray-500">รูปสินค้า 1</div>
-                    <h3 class="text-lg font-bold text-white">Discord Nitro (1 Month)</h3>
-                    <p class="text-gray-400 text-sm mt-1">อัพเกรดบัญชี Discord ของคุณให้ใช้งานฟีเจอร์พิเศษได้เต็มที่</p>
+                    <div class="bg-gradient-to-br from-amber-600 to-amber-800 h-44 rounded-lg mb-4 flex flex-col items-center justify-center text-amber-100 shadow-inner">
+                        <span class="text-4xl mb-1">💰</span>
+                        <span class="font-black text-xl">100M Gold</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-amber-300">เงิน M โยกัง (100 M)</h3>
+                    <p class="text-gray-400 text-sm mt-2">เงิน M สด พร้อมส่งมอบในเกม สะดวกรวดเร็ว ปลอดภัย</p>
                 </div>
-                <div class="mt-6 flex items-center justify-between">
-                    <span class="text-blue-400 font-bold text-lg">150 บาท</span>
-                    <button onclick="alert('กรุณาล็อกอินก่อนซื้อสินค้า')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm transition">ซื้อเลย</button>
+                <div class="mt-6 flex items-center justify-between border-t border-gray-700/50 pt-4">
+                    <span class="text-emerald-400 font-extrabold text-xl">50 บาท</span>
+                    <button onclick="buyItem('เงิน M โยกัง (100 M)')" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-4 py-2 rounded-lg text-sm transition shadow-md">สั่งซื้อสินค้า</button>
                 </div>
             </div>
 
-            <!-- สินค้าที่ 2 -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 flex flex-col justify-between">
+            <!-- สินค้าที่ 2: ยาคลั่ง / หญ้าเทพ -->
+            <div class="bg-gray-800 border border-gray-700 hover:border-amber-500/50 rounded-xl p-5 flex flex-col justify-between transition duration-300 shadow-lg">
                 <div>
-                    <div class="bg-gray-700 h-40 rounded-lg mb-4 flex items-center justify-center text-gray-500">รูปสินค้า 2</div>
-                    <h3 class="text-lg font-bold text-white">VIP Server Role</h3>
-                    <p class="text-gray-400 text-sm mt-1">ยศพิเศษพร้อมสิทธิประโยชน์มากมายในคอมมูนิตี้ของเรา</p>
+                    <div class="bg-gradient-to-br from-red-600 to-red-900 h-44 rounded-lg mb-4 flex flex-col items-center justify-center text-red-100 shadow-inner">
+                        <span class="text-4xl mb-1">🧪</span>
+                        <span class="font-black text-xl">ยาลูกกลอนเทพ</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-amber-300">ชุดยาคลั่งตระกูลเทพ (100 เม็ด)</h3>
+                    <p class="text-gray-400 text-sm mt-2">เพิ่มพลังโจมตีและป้องกัน ปลุกพลังตัวละครเวลไวเวลตึง</p>
                 </div>
-                <div class="mt-6 flex items-center justify-between">
-                    <span class="text-blue-400 font-bold text-lg">99 บาท</span>
-                    <button onclick="alert('กรุณาล็อกอินก่อนซื้อสินค้า')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm transition">ซื้อเลย</button>
+                <div class="mt-6 flex items-center justify-between border-t border-gray-700/50 pt-4">
+                    <span class="text-emerald-400 font-extrabold text-xl">120 บาท</span>
+                    <button onclick="buyItem('ชุดยาคลั่งตระกูลเทพ')" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-4 py-2 rounded-lg text-sm transition shadow-md">สั่งซื้อสินค้า</button>
                 </div>
             </div>
 
-            <!-- สินค้าที่ 3 -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 flex flex-col justify-between">
+            <!-- สินค้าที่ 3: ชุดคอสตูม / สำนัก -->
+            <div class="bg-gray-800 border border-gray-700 hover:border-amber-500/50 rounded-xl p-5 flex flex-col justify-between transition duration-300 shadow-lg">
                 <div>
-                    <div class="bg-gray-700 h-40 rounded-lg mb-4 flex items-center justify-center text-gray-500">รูปสินค้า 3</div>
-                    <h3 class="text-lg font-bold text-white">Custom Bot Hosting</h3>
-                    <p class="text-gray-400 text-sm mt-1">บริการโฮสติ้งบอร์ด Discord เปิดใช้งานตลอด 24 ชั่วโมง</p>
+                    <div class="bg-gradient-to-br from-purple-600 to-indigo-900 h-44 rounded-lg mb-4 flex flex-col items-center justify-center text-purple-100 shadow-inner">
+                        <span class="text-4xl mb-1">🥋</span>
+                        <span class="font-black text-xl">Costume VIP</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-amber-300">ชุดคลุมจอมยุทธ์แรร์</h3>
+                    <p class="text-gray-400 text-sm mt-2">ชุดคลุมหล่อๆ เท่ๆ สเตตัสเสริมออฟชั่นพิเศษสุดแรร์</p>
                 </div>
-                <div class="mt-6 flex items-center justify-between">
-                    <span class="text-blue-400 font-bold text-lg">250 บาท</span>
-                    <button onclick="alert('กรุณาล็อกอินก่อนซื้อสินค้า')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm transition">ซื้อเลย</button>
+                <div class="mt-6 flex items-center justify-between border-t border-gray-700/50 pt-4">
+                    <span class="text-emerald-400 font-extrabold text-xl">350 บาท</span>
+                    <button onclick="buyItem('ชุดคลุมจอมยุทธ์แรร์')" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-4 py-2 rounded-lg text-sm transition shadow-md">สั่งซื้อสินค้า</button>
                 </div>
             </div>
         </div>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 border-t border-gray-700 py-4 text-center text-gray-500 text-sm">
-        &copy; 2026 MasaruShop. All rights reserved.
+    <footer class="bg-gray-800 border-t border-gray-700 py-6 text-center text-gray-400 text-sm">
+        &copy; 2026 MasaruShop - Yulgang Marketplace. All rights reserved.
     </footer>
 
-    <!-- Script จัดการการล็อกอิน -->
+    <!-- Script จัดการระบบล็อกอิน และ สั่งซื้อ -->
     <script>
-        // 1. ตรวจสอบว่ามีข้อมูลผู้ใช้ส่งกลับมาจาก URL หลังล็อกอินสำเร็จหรือไม่
+        // 1. ดึงข้อมูล User จาก URL Query String หลัง OAuth Callback
         const urlParams = new URLSearchParams(window.location.search);
         const userParam = urlParams.get('user');
 
         if (userParam) {
             try {
-                // แปลงข้อมูลผู้ใช้และเก็บลง localStorage
                 const userData = JSON.parse(userParam);
                 localStorage.setItem('discord_user', JSON.stringify(userData));
-                // ล้าง URL ให้สะอาด (เอา Query Param ออก)
+                // เคลียร์ Query Param บน URL ให้ดูสะอาด
                 window.history.replaceState({}, document.title, window.location.pathname);
             } catch (e) {
                 console.error("Failed to parse user data", e);
             }
         }
 
-        // 2. เช็กสถานะจาก localStorage เพื่อแสดงผล UI
+        // 2. ตรวจสอบสถานะการล็อกอินใน localStorage
         const savedUser = localStorage.getItem('discord_user');
         const authContainer = document.getElementById('auth-container');
 
         if (savedUser) {
             const user = JSON.parse(savedUser);
-            // สร้างรูป Avatar (ถ้าไม่มีรูป จะใช้รูป default ของ Discord)
             const avatarUrl = user.avatar 
                 ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` 
                 : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-            // เปลี่ยนหน้าตา Navbar ให้แสดงโปรไฟล์ + ปุ่ม Logout
+            // เปลี่ยนจากปุ่ม Login เป็นแสดงโปรไฟล์ผู้ใช้ + ปุ่มออกจากระบบ
             authContainer.innerHTML = `
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2 bg-gray-700/50 px-3 py-1.5 rounded-full border border-gray-600">
-                        <img src="${avatarUrl}" alt="Avatar" class="w-8 h-8 rounded-full">
-                        <span class="font-medium text-sm text-gray-200">${user.username}</span>
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-2 bg-gray-700/80 px-3 py-1.5 rounded-full border border-gray-600 shadow">
+                        <img src="${avatarUrl}" alt="Avatar" class="w-7 h-7 rounded-full">
+                        <span class="font-semibold text-sm text-amber-200">${user.username}</span>
                     </div>
                     <button onclick="logout()" class="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition duration-200">
                         ออกจากระบบ
@@ -121,7 +130,19 @@
             `;
         }
 
-        // 3. ฟังก์ชันออกจากระบบ
+        // 3. ฟังก์ชันการกดสั่งซื้อสินค้า
+        function buyItem(itemName) {
+            const user = localStorage.getItem('discord_user');
+            if (!user) {
+                alert('⚠️ กรุณาล็อกอินด้วยบัญชี Discord ก่อนทำการสั่งซื้อครับ');
+                window.location.href = '/api/login';
+            } else {
+                const userData = JSON.parse(user);
+                alert(`🎉 คุณ [${userData.username}] ได้ทำรายการสั่งซื้อ: ${itemName}\n(ระบบกำลังพาไปยังขั้นตอนชำระเงิน...)`);
+            }
+        }
+
+        // 4. ฟังก์ชันออกจากระบบ
         function logout() {
             localStorage.removeItem('discord_user');
             window.location.reload();
