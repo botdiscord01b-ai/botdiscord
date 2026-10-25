@@ -1,9 +1,0 @@
-{
-  "name": "masarushop",
-  "version": "1.0.0",
-  "description": "MasaruShop automated deployment",
-  "scripts": {
-    "build": "echo 'Build successfully configured for Vercel'",
-    "start": "echo 'Running shop interface'"
-  }
-}
