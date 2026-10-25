@@ -1,11 +1,9 @@
 import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
-    // ดึงข้อมูลสินค้าทั้งหมด (GET)
     if (req.method === 'GET') {
         try {
             let products = await kv.get('yulgang_drop_products');
-            // ถ้าในฐานข้อมูลยังไม่มี ให้ใส่รายการเริ่มต้นเข้าไป
             if (!products) {
                 products = [
                     { id: 1, name: "หินออฟชั่นพลังโจมตี (ชิ้น)", desc: "หินดรอปจากมอนสเตอร์ระดับสูง สเตตัสสวยพร้อมใช้", price: 35, icon: "💎" },
@@ -20,7 +18,6 @@ export default async function handler(req, res) {
         }
     }
 
-    // อัปเดต/บันทึกรายการสินค้า (POST - สำหรับแอดมิน)
     if (req.method === 'POST') {
         try {
             const { products } = req.body;
