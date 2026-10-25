@@ -63,13 +63,9 @@
                     <input type="number" id="p-price" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น 35">
                 </div>
                 <div class="mb-6">
-                    <label class="block text-gray-300 text-sm mb-1">ไอคอนหมวดหมู่</label>
-                    <select id="p-icon" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500">
-                        <option value="💎">💎 หินแรร์ / ออฟชั่น</option>
-                        <option value="📜">📜 ตำรา / คัมภีร์</option>
-                        <option value="🛡️">🛡️ อุปกรณ์ดรอป</option>
-                        <option value="📦">📦 ขยะดรอป / ของสะสม</option>
-                    </select>
+                    <label class="block text-gray-300 text-sm mb-1">ลิงก์รูปภาพไอเทม (Image URL)</label>
+                    <input type="url" id="p-image" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="https://example.com/item.png (ถ้าไม่มีปล่อยว่างได้)">
+                    <p class="text-xs text-gray-400 mt-1">แนะนำ: ใช้ลิงก์รูปจากเว็บฝากรูปหรือ Discord</p>
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button type="button" onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">ยกเลิก</button>
@@ -170,12 +166,16 @@
                     `;
                 }
 
+                // ตรวจสอบว่ามีรูปภาพไหม ถ้ามีให้แสดงรูป ถ้าไม่มีให้แสดงไอคอนสำรอง
+                let imageDisplay = p.image 
+                    ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">`
+                    : `<div class="flex flex-col items-center justify-center text-amber-100"><span class="text-5xl mb-1">📦</span><span class="font-black text-xs text-amber-300">Yulgang Item</span></div>`;
+
                 grid.innerHTML += `
                     <div class="bg-gray-800 border border-gray-700 hover:border-amber-500/50 rounded-xl p-5 flex flex-col justify-between transition duration-300 shadow-lg relative">
                         <div>
-                            <div class="bg-gradient-to-br from-amber-600/80 to-gray-900 h-44 rounded-lg mb-4 flex flex-col items-center justify-center text-amber-100 shadow-inner">
-                                <span class="text-5xl mb-1">${p.icon}</span>
-                                <span class="font-black text-sm text-amber-300 mt-1">${p.name}</span>
+                            <div class="bg-gradient-to-br from-amber-600/80 to-gray-900 h-44 rounded-lg mb-4 flex items-center justify-center overflow-hidden shadow-inner">
+                                ${imageDisplay}
                             </div>
                             <h3 class="text-xl font-bold text-amber-300">${p.name}</h3>
                             <p class="text-gray-400 text-sm mt-2">${p.desc}</p>
@@ -207,14 +207,14 @@
             const name = document.getElementById('p-name').value;
             const desc = document.getElementById('p-desc').value;
             const price = Number(document.getElementById('p-price').value);
-            const icon = document.getElementById('p-icon').value;
+            const image = document.getElementById('p-image').value;
 
             const newProduct = {
                 id: Date.now(),
                 name,
                 desc,
                 price,
-                icon
+                image
             };
 
             productsList.push(newProduct);
