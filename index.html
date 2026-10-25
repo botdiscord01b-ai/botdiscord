@@ -58,14 +58,26 @@
                     <label class="block text-gray-300 text-sm mb-1">รายละเอียด</label>
                     <textarea id="p-desc" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="ระบุประเภทมอนเตอร์หรือรายละเอียดไอเทม..."></textarea>
                 </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-300 text-sm mb-1">จำนวนชิ้น</label>
+                        <input type="number" id="p-amount" min="1" value="1" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น 1 หรือ 100">
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 text-sm mb-1">ราคารวม</label>
+                        <input type="number" id="p-price" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น 35">
+                    </div>
+                </div>
                 <div class="mb-4">
-                    <label class="block text-gray-300 text-sm mb-1">ราคา (บาท)</label>
-                    <input type="number" id="p-price" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น 35">
+                    <label class="block text-gray-300 text-sm mb-1">สกุลเงิน</label>
+                    <select id="p-currency" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                        <option value="บาท">บาท</option>
+                        <option value="สลึง">สลึง</option>
+                    </select>
                 </div>
                 <div class="mb-6">
                     <label class="block text-gray-300 text-sm mb-1">ลิงก์รูปภาพไอเทม (Image URL)</label>
                     <input type="url" id="p-image" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="https://example.com/item.png (ถ้าไม่มีปล่อยว่างได้)">
-                    <p class="text-xs text-gray-400 mt-1">แนะนำ: ใช้ลิงก์รูปจากเว็บฝากรูปหรือ Discord</p>
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button type="button" onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">ยกเลิก</button>
@@ -135,7 +147,6 @@
             `;
         }
 
-        // โหลดข้อมูลสินค้าจาก Database API
         async function fetchProducts() {
             try {
                 const res = await fetch('/api/products');
@@ -166,22 +177,37 @@
                     `;
                 }
 
-                // ตรวจสอบว่ามีรูปภาพไหม ถ้ามีให้แสดงรูป ถ้าไม่มีให้แสดงไอคอนสำรอง
                 let imageDisplay = p.image 
                     ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">`
                     : `<div class="flex flex-col items-center justify-center text-amber-100"><span class="text-5xl mb-1">📦</span><span class="font-black text-xs text-amber-300">Yulgang Item</span></div>`;
 
+                let currencyType = p.currency || 'บาท';
+                let amount = p.amount || 1;
+                
+                // คำนวณราคาต่อชิ้นถ้าจำนวนมากกว่า 1 ชิ้น
+                let pricePerUnitHtml = '';
+                if (amount > 1) {
+                    let perUnit = (p.price / amount).toFixed(2);
+                    pricePerUnitHtml = `<div class="text-xs text-gray-400 mt-0.5">(ตกชิ้นละประมาณ ${perUnit} ${currencyType})</div>`;
+                }
+
                 grid.innerHTML += `
                     <div class="bg-gray-800 border border-gray-700 hover:border-amber-500/50 rounded-xl p-5 flex flex-col justify-between transition duration-300 shadow-lg relative">
                         <div>
-                            <div class="bg-gradient-to-br from-amber-600/80 to-gray-900 h-44 rounded-lg mb-4 flex items-center justify-center overflow-hidden shadow-inner">
+                            <div class="bg-gradient-to-br from-amber-600/80 to-gray-900 h-44 rounded-lg mb-4 flex items-center justify-center overflow-hidden shadow-inner relative">
                                 ${imageDisplay}
+                                <span class="absolute top-2 right-2 bg-black/70 text-amber-300 text-xs font-bold px-2 py-1 rounded-md border border-amber-500/30">
+                                    📦 จำนวน: ${amount} ชิ้น
+                                </span>
                             </div>
                             <h3 class="text-xl font-bold text-amber-300">${p.name}</h3>
                             <p class="text-gray-400 text-sm mt-2">${p.desc}</p>
                         </div>
                         <div class="mt-6 border-t border-gray-700/50 pt-4 flex items-center justify-between">
-                            <span class="text-emerald-400 font-extrabold text-xl">${p.price} บาท</span>
+                            <div>
+                                <span class="text-emerald-400 font-extrabold text-xl">${p.price} ${currencyType}</span>
+                                ${pricePerUnitHtml}
+                            </div>
                             <div class="flex items-center space-x-2">
                                 ${deleteBtnHtml}
                                 <button onclick="buyItem('${p.name}')" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-4 py-2 rounded-lg text-sm transition shadow-md">สั่งซื้อ</button>
@@ -206,14 +232,18 @@
             event.preventDefault();
             const name = document.getElementById('p-name').value;
             const desc = document.getElementById('p-desc').value;
+            const amount = Number(document.getElementById('p-amount').value) || 1;
             const price = Number(document.getElementById('p-price').value);
+            const currency = document.getElementById('p-currency').value;
             const image = document.getElementById('p-image').value;
 
             const newProduct = {
                 id: Date.now(),
                 name,
                 desc,
+                amount,
                 price,
+                currency,
                 image
             };
 
@@ -262,7 +292,6 @@
             window.location.reload();
         }
 
-        // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
         fetchProducts();
     </script>
 </body>
