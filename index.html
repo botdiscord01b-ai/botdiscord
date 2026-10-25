@@ -1,507 +1,79 @@
- <!DOCTYPE html>
-<html lang="th" class="dark">
+<!DOCTYPE html>
+<html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MasaruShop (มาซารุ ช็อป) - Yulgang Rebuild Marketplace</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        gold: {
-                            400: '#facc15',
-                            500: '#eab308',
-                            600: '#ca8a04',
-                            700: '#a16207',
-                        },
-                        dark: {
-                            800: '#121212',
-                            900: '#0a0a0a',
-                            700: '#1e1e1e',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>MasaruShop</title>
     <style>
         body {
-            background-color: #0a0a0a;
-            color: #e5e7eb;
-            font-family: 'Kanit', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
         }
-        .gold-gradient-text {
-            background: linear-gradient(135deg, #ffe066 0%, #eab308 50%, #996515 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .container {
+            background-color: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #38bdf8;
         }
     </style>
 </head>
-<body class="bg-dark-950 text-gray-100 min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-black">
+<body>
 
-    <!-- Navbar -->
-    <nav class="bg-dark-900 border-b border-dark-700 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-gold-400 to-gold-700 flex items-center justify-center text-black font-bold text-xl shadow-lg shadow-gold-500/20">
-                M
-            </div>
-            <div>
-                <h1 class="text-xl font-bold tracking-wide gold-gradient-text">MasaruShop</h1>
-                <p class="text-xs text-gray-400">มาซารุ ช็อป • Yulgang Rebuild</p>
-            </div>
-        </div>
+    <div class="container">
+        <h1>MasaruShop Marketplace</h1>
+        <p>ยินดีต้อนรับสู่ร้านค้าออนไลน์ กรุณาเข้าสู่ระบบด้วยบัญชี Discord ของคุณ</p>
 
-        <div class="flex items-center space-x-3">
-            <!-- ปุ่มเปิดหน้า System Logs -->
-            <button onclick="toggleLogsModal()" class="bg-dark-700 hover:bg-dark-800 text-gold-400 border border-gold-500/30 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition shadow-sm">
-                <i class="fa-solid fa-terminal"></i>
-                <span>System Logs</span>
-            </button>
+        <!-- ปุ่มสำหรับกด ล็อกอินด้วย Discord -->
+        <a href="/api/login" id="login-btn" style="background-color: #5865F2; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 15px;">
+          Login with Discord
+        </a>
 
-            <div class="bg-dark-800 border border-dark-700 px-4 py-2 rounded-xl flex items-center space-x-3 shadow-inner">
-                <i class="fa-brands fa-discord text-indigo-400 text-lg"></i>
-                <div>
-                    <div class="text-xs text-gray-400">สถานะผู้ใช้</div>
-                    <div class="text-sm font-semibold flex items-center space-x-1">
-                        <span id="userNameDisplay">MasaruOwner</span>
-                        <span id="userBadgeDisplay" class="bg-gold-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded shadow">OWNER</span>
-                    </div>
-                </div>
-            </div>
-            
-            <button onclick="toggleAdminMode()" id="toggleRoleBtn" class="bg-dark-800 hover:bg-dark-700 text-gray-300 border border-dark-700 px-3 py-2 rounded-lg text-xs transition">
-                สลับเป็นผู้เล่น
-            </button>
-        </div>
-    </nav>
-
-    <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
-        
-        <!-- Admin Control Panel Banner -->
-        <div id="adminPanelBanner" class="bg-gradient-to-r from-gold-600/20 via-dark-800 to-dark-800 border border-gold-500/40 rounded-2xl p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
-            <div class="flex items-start space-x-4">
-                <div class="p-3 bg-gold-500/10 border border-gold-500/30 rounded-xl text-gold-400 text-2xl">
-                    <i class="fa-solid fa-crown"></i>
-                </div>
-                <div>
-                    <h2 class="text-lg font-bold text-gold-400">เข้าสู่ระบบในฐานะ Owner / แอดมินร้าน (ID: 550122613087666177)</h2>
-                    <p class="text-sm text-gray-300">คุณสามารถสร้างแพ็กเกจขายของ จัดการสต็อก และเปลี่ยนสถานะรายการได้</p>
-                </div>
-            </div>
-            <button onclick="openCreateModal()" class="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-black font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-gold-500/20 transition flex items-center space-x-2">
-                <i class="fa-solid fa-plus"></i>
-                <span>สร้างแพ็กสินค้า</span>
-            </button>
-        </div>
-
-        <!-- Stats Overview -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl shadow-sm">
-                <div class="text-xs text-gray-400 mb-1">สินค้าทั้งหมด</div>
-                <div id="statTotal" class="text-2xl font-bold">2</div>
-            </div>
-            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl shadow-sm">
-                <div class="text-xs text-gray-400 mb-1">พร้อมขาย (In Stock)</div>
-                <div id="statInStock" class="text-2xl font-bold text-green-400">2</div>
-            </div>
-            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl shadow-sm">
-                <div class="text-xs text-gray-400 mb-1">ขายแล้ว (Sold Out)</div>
-                <div id="statSold" class="text-2xl font-bold text-red-400">0</div>
-            </div>
-            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl shadow-sm">
-                <div class="text-xs text-gray-400 mb-1">มูลค่าสินค้าในระบบ</div>
-                <div id="statValue" class="text-2xl font-bold text-gold-400">2,350 ฿</div>
-            </div>
-        </div>
-
-        <!-- Search & Filter Bar -->
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-            <div class="relative w-full sm:w-80">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-gray-500 text-sm"></i>
-                <input type="text" id="searchInput" oninput="filterProducts()" placeholder="ค้นหาไอเทม, ออพชั่น..." class="w-full bg-dark-800 border border-dark-700 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-gold-500 transition">
-            </div>
-            <div class="flex items-center space-x-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-                <button onclick="filterCategory('all')" class="cat-btn bg-gold-500 text-black px-4 py-2 rounded-xl text-sm font-medium transition">ทั้งหมด</button>
-                <button onclick="filterCategory('อาวุธ')" class="cat-btn bg-dark-800 hover:bg-dark-700 text-gray-300 px-4 py-2 rounded-xl text-sm font-medium transition border border-dark-700">อาวุธ</button>
-                <button onclick="filterCategory('ชุดเกราะ/เกราะ')" class="cat-btn bg-dark-800 hover:bg-dark-700 text-gray-300 px-4 py-2 rounded-xl text-sm font-medium transition border border-dark-700">ยุทธภัณฑ์/เกราะ</button>
-                <button onclick="filterCategory('ไอเทมละคร')" class="cat-btn bg-dark-800 hover:bg-dark-700 text-gray-300 px-4 py-2 rounded-xl text-sm font-medium transition border border-dark-700">ไอเทมตัวละคร</button>
-                <button onclick="filterCategory('เงินสลึงM')" class="cat-btn bg-dark-800 hover:bg-dark-700 text-gray-300 px-4 py-2 rounded-xl text-sm font-medium transition border border-dark-700">เงินสลึงM</button>
-            </div>
-        </div>
-
-        <!-- Product Grid -->
-        <div id="productGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Rendered by JS -->
-        </div>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-dark-900 border-t border-dark-700 text-center py-4 text-xs text-gray-500">
-        &copy; 2026 MasaruShop (มาซารุ ช็อป) • Yulgang Rebuild Marketplace. All rights reserved.
-    </footer>
-
-    <!-- System Logs Modal -->
-    <div id="logsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-dark-900 border border-dark-700 w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
-            <div class="bg-dark-800 px-6 py-4 border-b border-dark-700 flex justify-between items-center">
-                <div class="flex items-center space-x-2 text-gold-400 font-semibold">
-                    <i class="fa-solid fa-terminal"></i>
-                    <span>ระบบบันทึกเหตุการณ์ (System Logs)</span>
-                </div>
-                <button onclick="toggleLogsModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <div id="logsContainer" class="p-4 overflow-y-auto space-y-2 font-mono text-xs text-gray-300 bg-black/40 flex-grow">
-                <!-- Logs rendered here -->
-            </div>
-            <div class="bg-dark-800 px-4 py-3 border-t border-dark-700 flex justify-between items-center">
-                <button onclick="clearLogs()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs transition">ล้างประวัติ Logs</button>
-                <span class="text-gray-500 text-[11px]">บันทึกอัตโนมัติทุกการกระทำ</span>
-            </div>
+        <!-- ส่วนแสดงผลเมื่อล็อกอินสำเร็จ -->
+        <div id="user-profile" style="display: none; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; background: #334155; padding: 10px; border-radius: 8px;">
+          <img id="user-avatar" src="" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;" />
+          <span id="user-name" style="font-weight: bold; color: #f1f5f9;"></span>
         </div>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div id="productModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-dark-900 border border-dark-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
-            <h3 id="modalTitle" class="text-lg font-bold text-gold-400 mb-4">สร้างแพ็กสินค้าใหม่</h3>
-            <input type="hidden" id="editIndex">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">ชื่อไอเทม</label>
-                    <input type="text" id="inputName" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500" placeholder="เช่น ดาบมังกรเพลิง +10">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">หมวดหมู่</label>
-                    <select id="inputCat" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500">
-                        <option value="อาวุธ">อาวุธ</option>
-                        <option value="ชุดเกราะ/เกราะ">ยุทธภัณฑ์/เกราะ</option>
-                        <option value="ไอเทมละคร">ไอเทมตัวละคร</option>
-                        <option value="เงินสลึงM">เงินสลึงM</option>
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">ราคา (บาท)</label>
-                        <input type="number" id="inputPrice" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500" placeholder="1500">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">สถานะ</label>
-                        <select id="inputStatus" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500">
-                            <option value="ready">พร้อมขาย (In Stock)</option>
-                            <option value="sold">ขายแล้ว (Sold Out)</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">รายละเอียด / ออพชั่นไอเทม</label>
-                    <textarea id="inputDesc" rows="3" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500" placeholder="โจมตีวิพากษ์ +120%, โจมตีธาตุขึ้น 15%"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">ลิงก์รูปภาพไอเทม</label>
-                    <input type="text" id="inputImg" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500" placeholder="URL รูปภาพ (ปล่อยว่างเพื่อใช้ไอคอนค่าเริ่มต้น)">
-                </div>
-            </div>
-            <div class="flex justify-end space-x-3 mt-6">
-                <button onclick="closeModal()" class="bg-dark-800 hover:bg-dark-700 text-gray-300 px-4 py-2 rounded-xl text-sm">ยกเลิก</button>
-                <button onclick="saveProduct()" class="bg-gold-500 hover:bg-gold-400 text-black font-bold px-5 py-2 rounded-xl text-sm shadow-lg shadow-gold-500/20">บันทึกข้อมูล</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Script จัดการระบบและ Discord Notification -->
     <script>
-        // ตั้งค่า Discord Webhook URL ของคุณที่นี่ (ถ้าต้องการส่งแจ้งเตือนเข้าห้อง Discord)
-        const DISCORD_WEBHOOK_URL = ""; 
+      // ดึงข้อมูลผู้ใช้จาก URL Parameter หลังจาก Redirect กลับมา
+      const urlParams = new URLSearchParams(window.location.search);
+      const userParam = urlParams.get('user');
 
-        let isAdmin = true;
-        let currentFilter = 'all';
+      if (userParam) {
+        try {
+          const user = JSON.parse(decodeURIComponent(userParam));
 
-        let products = [
-            {
-                name: "ดาบมังกรเพลิง +10 (ออพวิพากษ์)",
-                category: "อาวุธ",
-                price: 1500,
-                status: "ready",
-                desc: "โจมตีวิพากษ์ +120%, โจมตีธาตุขึ้น 15%, วิญญาณขั้น 8",
-                img: ""
-            },
-            {
-                name: "ชุดเกราะมังกรทอง (ท็อปสาย)",
-                category: "ชุดเกราะ/เกราะ",
-                price: 850,
-                status: "ready",
-                desc: "พลังป้องกัน +250, ลดปราณ 15%",
-                img: ""
-            }
-        ];
-
-        let systemLogs = [
-            { time: new Date().toLocaleTimeString(), text: "ระบบร้านค้า MasaruShop เริ่มต้นการทำงานสำเร็จ (ID: 550122613087666177)" }
-        ];
-
-        function addLog(text) {
-            const timeStr = new Date().toLocaleTimeString();
-            systemLogs.unshift({ time: timeStr, text: text });
-            renderLogs();
+          // ซ่อนปุ่ม Login แล้วแสดงรูปกับชื่อผู้ใช้แทน
+          document.getElementById('login-btn').style.display = 'none';
+          document.getElementById('user-profile').style.display = 'flex';
+          document.getElementById('user-name').innerText = user.username;
+          
+          // สร้างลิงก์รูปโปรไฟล์ Discord
+          const avatarUrl = user.avatar 
+            ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+            : 'https://cdn.discordapp.com/embed/avatars/0.png';
+          document.getElementById('user-avatar').src = avatarUrl;
+        } catch (e) {
+          console.error("Failed to parse user data", e);
         }
-
-        function renderLogs() {
-            const container = document.getElementById('logsContainer');
-            container.innerHTML = systemLogs.map(log => `
-                <div class="py-1 border-b border-dark-800 flex items-start space-x-2">
-                    <span class="text-gold-500 font-bold">[${log.time}]</span>
-                    <span class="text-gray-300">${log.text}</span>
-                </div>
-            `).join('');
-        }
-
-        function clearLogs() {
-            systemLogs = [];
-            addLog("ล้างประวัติ System Logs โดยผู้ดูแลระบบ");
-        }
-
-        function toggleLogsModal() {
-            const modal = document.getElementById('logsModal');
-            modal.classList.toggle('hidden');
-        }
-
-        // ส่งข้อความแจ้งเตือนไปที่ Discord Webhook
-        async function sendDiscordNotification(orderName, price, buyer) {
-            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") {
-                addLog(`จำลองการสั่งซื้อสำเร็จ: ${orderName} (${price} ฿) - ยังไม่ได้ตั้งค่า Discord Webhook`);
-                alert(`สั่งซื้อสำเร็จ! รายการ: ${orderName} ราคา ${price} บาท`);
-                return;
-            }
-
-            const payload = {
-                embeds: [{
-                    title: "🛒 มีคำสั่งซื้อใหม่เข้ามาที่ MasaruShop!",
-                    color: 16766720, // สีทอง
-                    fields: [
-                        { name: "📦 สินค้า", value: orderName, inline: false },
-                        { name: "💰 ราคา", value: `${price} บาท`, inline: true },
-                        { name: "👤 ผู้ซื้อ", value: buyer, inline: true },
-                        { name: "⏰ เวลา", value: new Date().toLocaleString(), inline: false }
-                    ],
-                    footer: { text: "MasaruShop Admin Notification System" }
-                }]
-            };
-
-            try {
-                await fetch(DISCORD_WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                addLog(`ส่งแจ้งเตือนออเดอร์ ${orderName} ไปยัง Discord สำเร็จ!`);
-                alert(`สั่งซื้อสำเร็จ! และส่งแจ้งเตือนเข้า Discord เรียบร้อยแล้ว`);
-            } catch (error) {
-                addLog(`เกิดข้อผิดพลาดในการส่ง Discord Webhook: ${error.message}`);
-                alert(`สั่งซื้อสำเร็จ แต่ไม่สามารถส่งแจ้งเตือนเข้า Discord ได้`);
-            }
-        }
-
-        function toggleAdminMode() {
-            isAdmin = !isAdmin;
-            const banner = document.getElementById('adminPanelBanner');
-            const roleBtn = document.getElementById('toggleRoleBtn');
-            const nameDisp = document.getElementById('userNameDisplay');
-            const badgeDisp = document.getElementById('userBadgeDisplay');
-
-            if (isAdmin) {
-                banner.classList.remove('hidden');
-                roleBtn.innerText = "สลับเป็นผู้เล่น";
-                nameDisp.innerText = "MasaruOwner";
-                badgeDisp.innerText = "OWNER";
-                badgeDisp.className = "bg-gold-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded shadow";
-                addLog("สลับโหมดเป็น: Owner / Admin ร้านค้า");
-            } else {
-                banner.classList.add('hidden');
-                roleBtn.innerText = "สลับเป็นแอดมินร้าน";
-                nameDisp.innerText = "GeneralUser";
-                badgeDisp.innerText = "USER";
-                badgeDisp.className = "bg-gray-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow";
-                addLog("สลับโหมดเป็น: ผู้ใช้งานทั่วไป (User)");
-            }
-            renderProducts();
-        }
-
-        function renderProducts() {
-            const grid = document.getElementById('productGrid');
-            const searchVal = document.getElementById('searchInput').value.toLowerCase();
-
-            let totalCount = products.length;
-            let inStockCount = products.filter(p => p.status === 'ready').length;
-            let soldCount = products.filter(p => p.status === 'sold').length;
-            let totalVal = products.reduce((acc, p) => p.status === 'ready' ? acc + Number(p.price) : acc, 0);
-
-            document.getElementById('statTotal').innerText = totalCount;
-            document.getElementById('statInStock').innerText = inStockCount;
-            document.getElementById('statSold').innerText = soldCount;
-            document.getElementById('statValue').innerText = totalVal.toLocaleString() + " ฿";
-
-            let filtered = products.filter(p => {
-                let matchCat = (currentFilter === 'all' || p.category === currentFilter);
-                let matchSearch = p.name.toLowerCase().includes(searchVal) || p.desc.toLowerCase().includes(searchVal);
-                return matchCat && matchSearch;
-            });
-
-            if (filtered.length === 0) {
-                grid.innerHTML = `
-                    <div class="col-span-full py-16 text-center text-gray-500">
-                        <i class="fa-solid fa-box-open text-4xl mb-3"></i>
-                        <p>ยังไม่มีรายการสินค้าในขณะนี้</p>
-                    </div>
-                `;
-                return;
-            }
-
-            grid.innerHTML = filtered.map((p, index) => {
-                let actualIndex = products.indexOf(p);
-                let statusBadge = p.status === 'ready' 
-                    ? `<span class="bg-green-500/10 text-green-400 border border-green-500/30 text-xs px-2.5 py-1 rounded-full font-medium">พร้อมส่ง</span>`
-                    : `<span class="bg-red-500/10 text-red-400 border border-red-500/30 text-xs px-2.5 py-1 rounded-full font-medium">ขายแล้ว</span>`;
-
-                let adminActions = isAdmin ? `
-                    <div class="flex items-center space-x-2 pt-3 border-t border-dark-700 mt-3">
-                        <button onclick="editProduct(${actualIndex})" class="flex-1 bg-dark-700 hover:bg-dark-600 text-gray-200 py-1.5 rounded-lg text-xs transition"><i class="fa-solid fa-pen mr-1"></i> แก้ไข</button>
-                        <button onclick="deleteProduct(${actualIndex})" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs transition"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                ` : `
-                    <div class="pt-3 border-t border-dark-700 mt-3 flex justify-end">
-                        <button onclick="buyProduct(${actualIndex})" class="w-full bg-gold-500 hover:bg-gold-400 text-black font-bold py-2 rounded-xl text-xs transition shadow-md shadow-gold-500/10">
-                            <i class="fa-solid fa-cart-shopping mr-1"></i> สั่งซื้อสินค้า
-                        </button>
-                    </div>
-                `;
-
-                let imgContent = p.img ? `<img src="${p.img}" class="w-full h-40 object-cover rounded-xl mb-3">` : `
-                    <div class="w-full h-40 bg-dark-900 rounded-xl mb-3 flex items-center justify-center text-dark-700 border border-dark-700">
-                        <i class="fa-solid fa-shield-halved text-5xl text-gold-500/40"></i>
-                    </div>
-                `;
-
-                return `
-                    <div class="bg-dark-800 border border-dark-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between hover:border-gold-500/50 transition">
-                        <div>
-                            <div class="flex justify-between items-start mb-3">
-                                <span class="bg-dark-900 border border-dark-700 text-gold-400 text-xs px-2.5 py-1 rounded-lg">${p.category}</span>
-                                ${statusBadge}
-                            </div>
-                            ${imgContent}
-                            <h3 class="font-bold text-base mb-1 text-gray-100">${p.name}</h3>
-                            <p class="text-xs text-gray-400 mb-4 line-clamp-2">${p.desc}</p>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="text-xs text-gray-400">ราคา</span>
-                                <span class="text-lg font-bold text-gold-400">${Number(p.price).toLocaleString()} ฿</span>
-                            </div>
-                            ${adminActions}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function filterCategory(cat) {
-            currentFilter = cat;
-            document.querySelectorAll('.cat-btn').forEach(btn => {
-                btn.className = "cat-btn bg-dark-800 hover:bg-dark-700 text-gray-300 px-4 py-2 rounded-xl text-sm font-medium transition border border-dark-700";
-            });
-            event.target.className = "cat-btn bg-gold-500 text-black px-4 py-2 rounded-xl text-sm font-medium transition";
-            renderProducts();
-        }
-
-        function filterProducts() {
-            renderProducts();
-        }
-
-        function openCreateModal() {
-            document.getElementById('modalTitle').innerText = "สร้างแพ็กสินค้าใหม่";
-            document.getElementById('editIndex').value = "";
-            document.getElementById('inputName').value = "";
-            document.getElementById('inputPrice').value = "";
-            document.getElementById('inputDesc').value = "";
-            document.getElementById('inputImg').value = "";
-            document.getElementById('productModal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('productModal').classList.add('hidden');
-        }
-
-        function editProduct(index) {
-            let p = products[index];
-            document.getElementById('modalTitle').innerText = "แก้ไขข้อมูลสินค้า";
-            document.getElementById('editIndex').value = index;
-            document.getElementById('inputName').value = p.name;
-            document.getElementById('inputCat').value = p.category;
-            document.getElementById('inputPrice').value = p.price;
-            document.getElementById('inputStatus').value = p.status;
-            document.getElementById('inputDesc').value = p.desc;
-            document.getElementById('inputImg').value = p.img;
-            document.getElementById('productModal').classList.remove('hidden');
-        }
-
-        function saveProduct() {
-            let index = document.getElementById('editIndex').value;
-            let name = document.getElementById('inputName').value;
-            let cat = document.getElementById('inputCat').value;
-            let price = document.getElementById('inputPrice').value;
-            let status = document.getElementById('inputStatus').value;
-            let desc = document.getElementById('inputDesc').value;
-            let img = document.getElementById('inputImg').value;
-
-            if (!name || !price) {
-                alert("กรุณากรอกชื่อสินค้าและราคาให้ครบถ้วน");
-                return;
-            }
-
-            if (index === "") {
-                products.push({ name, category: cat, price, status, desc, img });
-                addLog(`เพิ่มสินค้าใหม่: "${name}" (${price} บาท)`);
-            } else {
-                products[index] = { name, category: cat, price, status, desc, img };
-                addLog(`แก้ไขข้อมูลสินค้าลำดับที่ ${index}: "${name}"`);
-            }
-
-            closeModal();
-            renderProducts();
-        }
-
-        function deleteProduct(index) {
-            if (confirm("คุณต้องการลบสินค้านี้ใช่หรือไม่?")) {
-                let removed = products.splice(index, 1);
-                addLog(`ลบสินค้า: "${removed[0].name}" ออกจากระบบ`);
-                renderProducts();
-            }
-        }
-
-        function buyProduct(index) {
-            let p = products[index];
-            if (p.status !== 'ready') {
-                alert("สินค้านี้ขายไปแล้วครับ");
-                return;
-            }
-            if (confirm(`ยืนยันการสั่งซื้อสินค้า "${p.name}" ในราคา ${p.price} บาทใช่หรือไม่?`)) {
-                p.status = 'sold';
-                sendDiscordNotification(p.name, p.price, "GeneralUser (ลูกค้าทั่วไป)");
-                renderProducts();
-            }
-        }
-
-        // เริ่มต้นแสดงผลหน้าเว็บ
-        renderLogs();
-        renderProducts();
+      }
     </script>
+
 </body>
 </html>
