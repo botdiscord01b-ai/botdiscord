@@ -6,16 +6,21 @@
     <title>MasaruShop - Yulgang Drop Items</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col justify-between">
+<body class="bg-gray-900 text-white min-h-screen flex flex-col justify-between overflow-x-hidden">
 
     <!-- Header / Navbar -->
-    <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center shadow-lg sticky top-0 z-50">
+    <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center shadow-lg sticky top-0 z-40">
         <div class="flex items-center space-x-3">
             <span class="text-2xl font-black text-amber-400 tracking-wider">⚔️ MasaruShop</span>
             <span class="bg-amber-500/20 text-amber-400 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-500/30">Yulgang Drops</span>
         </div>
 
         <div class="flex items-center space-x-3">
+            <!-- ปุ่มสลับเปิด-ปิด Sidebar แอดมิน (จะแสดงเฉพาะเมื่อเป็น Owner) -->
+            <button id="toggle-admin-btn" onclick="toggleSidebar()" class="hidden bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-2 rounded-lg text-xs md:text-sm transition flex items-center space-x-1 shadow-lg">
+                <span>🛡️ แผงควบคุมแอดมิน</span>
+            </button>
+
             <div id="auth-container">
                 <a href="/api/login" id="login-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition duration-200 flex items-center space-x-2 shadow-md">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
@@ -25,70 +30,75 @@
         </div>
     </header>
 
+    <!-- Overlay ฉากหลังสีดำจางๆ ตอนเปิด Sidebar -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300"></div>
+
+    <!-- 🛡️ แถบด้านข้างสำหรับ Owner (Collapsible Slide-Out Admin Drawer) -->
+    <aside id="owner-sidebar" class="fixed top-0 left-0 h-full w-80 md:w-96 bg-gray-800/95 border-r border-red-500/50 p-5 shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 overflow-y-auto space-y-6">
+        <div class="flex justify-between items-center border-b border-gray-700 pb-3">
+            <h2 class="text-lg font-bold text-red-400 flex items-center space-x-2">
+                <span>🛡️ แผงควบคุมแอดมิน</span>
+            </h2>
+            <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-xl font-bold px-2 py-0.5 rounded-lg bg-gray-700">✕</button>
+        </div>
+
+        <div>
+            <button onclick="openModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-lg text-xs transition shadow flex items-center justify-center space-x-2 mb-2">
+                <span>➕ เพิ่มรายการของดรอป</span>
+            </button>
+            <button onclick="clearLogs()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-2 px-4 rounded-lg text-xs transition">
+                🧹 ล้างประวัติ Logs
+            </button>
+        </div>
+
+        <!-- 1. ออร์เดอร์ -->
+        <div>
+            <h3 class="text-xs font-bold text-amber-300 mb-2">📦 ออร์เดอร์สินค้า (รอตรวจสอบ)</h3>
+            <div id="admin-orders-list" class="bg-gray-900 border border-gray-700 p-2.5 rounded-xl space-y-2 max-h-48 overflow-y-auto text-xs">
+                <p class="text-gray-500 text-[10px]">ไม่มีออร์เดอร์ใหม่</p>
+            </div>
+        </div>
+
+        <!-- 2. แชทลูกค้า -->
+        <div>
+            <h3 class="text-xs font-bold text-amber-300 mb-2">💬 กล่องข้อความลูกค้า</h3>
+            <div class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 h-56 flex flex-col justify-between text-xs">
+                <div id="admin-chat-users" class="overflow-y-auto space-y-1 max-h-20 border-b border-gray-800 pb-1 mb-1">
+                    <span class="text-[10px] text-gray-500">รายชื่อลูกค้า</span>
+                </div>
+                <div id="admin-chat-messages" class="overflow-y-auto space-y-1 flex-grow text-[11px] pr-1">
+                    <div class="text-center text-gray-500 text-[10px] py-4">เลือกชื่อลูกค้าเพื่อเริ่มคุย</div>
+                </div>
+                <form id="admin-chat-form" onsubmit="handleAdminSendMessage(event)" class="mt-2 flex gap-1 hidden">
+                    <input type="text" id="admin-chat-input" placeholder="พิมพ์ตอบกลับ..." required class="flex-grow bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500">
+                    <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-3 py-1 rounded text-[11px]">ส่ง</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 3. Debug Logs -->
+        <div>
+            <h3 class="text-xs font-bold text-amber-300 mb-2">🔍 Debug Activity Logs</h3>
+            <div id="admin-logs-box" class="bg-black/90 border border-gray-700 rounded-xl p-3 h-44 overflow-y-auto font-mono text-[10px] text-emerald-400 space-y-1">
+                <div>กำลังโหลด Logs...</div>
+            </div>
+        </div>
+    </aside>
+
     <!-- Main Content -->
     <main class="container mx-auto px-4 py-8 flex-grow">
-        <div class="bg-gradient-to-r from-amber-900/40 via-gray-800 to-indigo-900/40 border border-amber-500/30 rounded-2xl p-6 md:p-10 mb-10 text-center shadow-xl">
+        <div class="bg-gradient-to-r from-amber-900/40 via-gray-800 to-indigo-900/40 border border-amber-500/30 rounded-2xl p-6 md:p-10 mb-8 text-center shadow-xl">
             <h1 class="text-3xl md:text-5xl font-extrabold text-amber-300 mb-3 drop-shadow">ศูนย์รวมวัตถุดิบและของดรอปจากมอนสเตอร์</h1>
             <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ฟาร์มเอง ขายจริง ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
         </div>
 
-        <!-- แผงควบคุมสำหรับ Owner (รวมสินค้า + ออร์เดอร์ + แชทลูกค้า + ระบบ Debug Logs) -->
-        <div id="owner-dashboard" class="hidden bg-gray-800/90 border border-red-500/50 rounded-2xl p-6 mb-10 shadow-2xl">
-            <h2 class="text-2xl font-bold text-red-400 mb-4 flex items-center space-x-2">
-                <span>🛡️ แผงควบคุมเจ้าของเซิร์ฟเวอร์ (Admin Panel & Debug)</span>
-            </h2>
-            <div class="flex flex-wrap gap-4 mb-6">
-                <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2 shadow">
-                    <span>➕ เพิ่มรายการของดรอป</span>
-                </button>
-                <button onclick="clearLogs()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold px-4 py-2 rounded-lg text-sm transition">
-                    🧹 ล้างประวัติ Logs
-                </button>
-            </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- 1. จัดการออร์เดอร์ -->
-                <div>
-                    <h3 class="text-base font-bold text-amber-300 mb-2">📦 ออร์เดอร์สินค้า</h3>
-                    <div id="admin-orders-list" class="bg-gray-900 border border-gray-700 p-3 rounded-xl space-y-2 h-72 overflow-y-auto">
-                        <p class="text-gray-500 text-xs">ยังไม่มีออร์เดอร์</p>
-                    </div>
-                </div>
-
-                <!-- 2. แชทลูกค้า -->
-                <div>
-                    <h3 class="text-base font-bold text-amber-300 mb-2">💬 แชทร้านค้าส่วนตัว</h3>
-                    <div class="bg-gray-900 border border-gray-700 rounded-xl p-2 h-72 flex flex-col justify-between">
-                        <div id="admin-chat-users" class="overflow-y-auto space-y-1 max-h-24 border-b border-gray-800 pb-1 mb-1">
-                            <span class="text-[10px] text-gray-500">รายชื่อลูกค้า</span>
-                        </div>
-                        <div id="admin-chat-messages" class="overflow-y-auto space-y-1 flex-grow text-xs pr-1">
-                            <div class="text-center text-gray-500 text-[10px] py-6">เลือกแชทร้านค้า</div>
-                        </div>
-                        <form id="admin-chat-form" onsubmit="handleAdminSendMessage(event)" class="mt-1 flex gap-1 hidden">
-                            <input type="text" id="admin-chat-input" placeholder="ตอบกลับ..." required class="flex-grow bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-amber-500">
-                            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-3 py-1 rounded text-xs">ส่ง</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- 3. ระบบ Debug Logs (ตรวจสอบกิจกรรมทุกอย่างในเว็บ) -->
-                <div>
-                    <h3 class="text-base font-bold text-amber-300 mb-2">🔍 เว็บไซต์ Activity Logs (Debug)</h3>
-                    <div id="admin-logs-box" class="bg-black/80 border border-gray-700 rounded-xl p-3 h-72 overflow-y-auto font-mono text-[11px] text-emerald-400 space-y-1">
-                        <div>กำลังโหลด Logs...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ส่วนแสดงสินค้า -->
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-amber-400">🛒 รายการของดรอปจากมอนสเตอร์</h2>
         </div>
 
-        <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="text-center col-span-3 text-gray-400 py-10">กำลังโหลดข้อมูลสินค้า...</div>
+        <!-- Grid แสดงสินค้าหลัก (เต็มความกว้าง 100%) -->
+        <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div class="text-center col-span-4 text-gray-400 py-10">กำลังโหลดข้อมูลสินค้า...</div>
         </div>
     </main>
 
@@ -182,7 +192,7 @@
 
         const savedUser = localStorage.getItem('discord_user');
         const authContainer = document.getElementById('auth-container');
-        const ownerDashboard = document.getElementById('owner-dashboard');
+        const toggleAdminBtn = document.getElementById('toggle-admin-btn');
         const customerChatSection = document.getElementById('customer-chat-section');
         let isOwner = false;
 
@@ -194,7 +204,7 @@
 
             if (currentUser.id === OWNER_DISCORD_ID) {
                 isOwner = true;
-                ownerDashboard.classList.remove('hidden');
+                toggleAdminBtn.classList.remove('hidden'); // แสดงปุ่มสลับเปิดแผงแอดมิน
             } else {
                 customerChatSection.classList.remove('hidden');
             }
@@ -211,11 +221,24 @@
             `;
         }
 
+        function toggleSidebar() {
+            const sidebar = document.getElementById('owner-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
         async function addLog(actionText) {
             const timeStr = new Date().toLocaleTimeString('th-TH');
             const logEntry = { time: timeStr, text: actionText };
             activityLogs.unshift(logEntry);
-            if (activityLogs.length > 50) activityLogs.pop(); // เก็บประวัติล่าสุด 50 รายการ
+            if (activityLogs.length > 50) activityLogs.pop();
             await saveDataToDB();
         }
 
@@ -263,7 +286,7 @@
             grid.innerHTML = '';
 
             if (productsList.length === 0) {
-                grid.innerHTML = `<div class="text-center col-span-3 text-gray-400 py-10">ยังไม่มีสินค้าในระบบ</div>`;
+                grid.innerHTML = `<div class="text-center col-span-4 text-gray-400 py-10">ยังไม่มีสินค้าในระบบ</div>`;
                 return;
             }
 
@@ -304,7 +327,7 @@
             if (!isOwner) return;
 
             if (activityLogs.length === 0) {
-                logsBox.innerHTML = `<div class="text-gray-500 text-center">ไม่มีบันทึก Log</div>`;
+                logsBox.innerHTML = `<div class="text-gray-500 text-center">ไม่มี Logs</div>`;
                 return;
             }
 
@@ -317,12 +340,11 @@
         async function clearLogs() {
             if (confirm('ต้องการล้างประวัติ Logs ทั้งหมดใช่หรือไม่?')) {
                 activityLogs = [];
-                await addLog('แอดมินล้างประวัติ Logs ทั้งหมด');
+                await addLog('แอดมินล้างประวัติ Logs');
                 renderLogs();
             }
         }
 
-        // --- ระบบแชทลูกค้าทั่วไป ---
         function renderCustomerChat() {
             if (!currentUser) return;
             const chatBox = document.getElementById('customer-chat-box');
@@ -373,7 +395,6 @@
             renderCustomerChat();
         }
 
-        // --- ส่วนแชท Admin ---
         function renderAdminChatUsers() {
             const userListContainer = document.getElementById('admin-chat-users');
             const userIds = Object.keys(chatThreads);
@@ -390,9 +411,8 @@
                 let activeClass = selectedChatUserId === uid ? 'bg-amber-500/20 border-amber-500' : 'bg-gray-800 hover:bg-gray-700';
 
                 userListContainer.innerHTML += `
-                    <div onclick="selectChatUser('${uid}')" class="p-1.5 rounded cursor-pointer border border-transparent ${activeClass} transition">
-                        <div class="font-bold text-[11px] text-amber-300 truncate">${lastMsg ? lastMsg.senderName : 'ลูกค้า'}</div>
-                        <div class="text-[9px] text-gray-400 truncate">${lastMsg ? lastMsg.message : ''}</div>
+                    <div onclick="selectChatUser('${uid}')" class="p-1 rounded cursor-pointer border border-transparent ${activeClass} transition">
+                        <div class="font-bold text-[10px] text-amber-300 truncate">${lastMsg ? lastMsg.senderName : 'ลูกค้า'}</div>
                     </div>
                 `;
             });
@@ -414,12 +434,12 @@
             msgs.forEach(m => {
                 let align = m.isAdmin ? 'text-right bg-indigo-950/40 border-indigo-500/30' : 'text-left bg-gray-800 border-gray-700';
                 chatMsgsContainer.innerHTML += `
-                    <div class="p-1.5 rounded border ${align} mb-1">
+                    <div class="p-1 rounded border ${align} mb-1">
                         <div class="flex justify-between items-center">
-                            <span class="font-bold text-[9px] text-amber-300">${m.senderName}</span>
-                            <span class="text-[8px] text-gray-500">${m.time}</span>
+                            <span class="font-bold text-[8px] text-amber-300">${m.senderName}</span>
+                            <span class="text-[7px] text-gray-500">${m.time}</span>
                         </div>
-                        <p class="text-gray-200 text-[11px]">${m.message}</p>
+                        <p class="text-gray-200 text-[10px]">${m.message}</p>
                     </div>
                 `;
             });
@@ -437,13 +457,13 @@
             if (!chatThreads[selectedChatUserId]) chatThreads[selectedChatUserId] = [];
 
             chatThreads[selectedChatUserId].push({
-                senderName: 'เจ้าของร้าน (Admin)',
+                senderName: 'Admin',
                 isAdmin: true,
                 message: message,
                 time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
             });
 
-            await addLog(`แอดมินตอบกลับแชทร้านค้า`);
+            await addLog(`แอดมินตอบแชทลูกค้า`);
             input.value = '';
             await saveDataToDB();
             renderAdminChatMessages();
@@ -455,28 +475,28 @@
             if (!isOwner) return;
 
             if (ordersList.length === 0) {
-                container.innerHTML = `<p class="text-gray-500 text-xs">ยังไม่มีออร์เดอร์</p>`;
+                container.innerHTML = `<p class="text-gray-500 text-[10px]">ไม่มีออร์เดอร์</p>`;
                 return;
             }
 
             container.innerHTML = '';
             ordersList.forEach(o => {
                 let statusBadge = o.status === 'รอการยืนยัน' 
-                    ? `<span class="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold">⏳ รอ</span>`
-                    : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold">✅ สำเร็จ</span>`;
+                    ? `<span class="bg-yellow-500/20 text-yellow-400 border border-yellow-500/35 px-1 rounded text-[8px] font-bold">⏳ รอ</span>`
+                    : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/35 px-1 rounded text-[8px] font-bold">✅ สำเร็จ</span>`;
 
                 container.innerHTML += `
-                    <div class="bg-gray-800 border border-gray-700 p-2 rounded-lg flex justify-between items-center text-xs">
+                    <div class="bg-gray-800 border border-gray-700 p-1.5 rounded-lg flex justify-between items-center text-[11px]">
                         <div>
                             <div class="flex items-center space-x-1">
                                 <span class="font-bold text-amber-300">${o.itemName}</span>
                                 ${statusBadge}
                             </div>
-                            <span class="text-[10px] text-gray-400">โดย: ${o.username} (${o.price} ${o.currency})</span>
+                            <span class="text-[9px] text-gray-400">${o.username} (${o.price} ${o.currency})</span>
                         </div>
                         <div class="flex space-x-1">
-                            ${o.status === 'รอการยืนยัน' ? `<button onclick="approveOrder(${o.id}, '${o.itemName}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded text-[9px] font-bold">✔️</button>` : ''}
-                            <button onclick="deleteOrder(${o.id})" class="bg-red-600 hover:bg-red-500 text-white px-2 py-0.5 rounded text-[9px]">🗑️</button>
+                            ${o.status === 'รอการยืนยัน' ? `<button onclick="approveOrder(${o.id}, '${o.itemName}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[8px] font-bold">✔️</button>` : ''}
+                            <button onclick="deleteOrder(${o.id})" class="bg-red-600 hover:bg-red-500 text-white px-1.5 py-0.5 rounded text-[8px]">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -502,7 +522,7 @@
             };
 
             ordersList.unshift(newOrder);
-            await addLog(`ลูกค้า [${currentUser.username}] สั่งซื้อสินค้า: ${name}`);
+            await addLog(`ลูกค้า [${currentUser.username}] สั่งซื้อ: ${name}`);
             await saveDataToDB();
             renderOrders();
             alert(`🎉 สั่งซื้อสำเร็จ! ส่งออร์เดอร์ไปหาแอดมินเรียบร้อย`);
@@ -543,7 +563,7 @@
             const newProduct = { id: Date.now(), name, desc, amount, price, currency, image };
             productsList.push(newProduct);
             
-            await addLog(`แอดมินเพิ่มสินค้าใหม่: ${name} (${price} ${currency})`);
+            await addLog(`เพิ่มสินค้า: ${name} (${price} ${currency})`);
             await saveDataToDB();
             closeModal();
             document.getElementById('create-product-form').reset();
@@ -554,7 +574,7 @@
         async function deleteProduct(id, name) {
             if (confirm(`⚠️ ยืนยันที่จะลบสินค้า "${name}" ใช่หรือไม่?`)) {
                 productsList = productsList.filter(p => p.id !== id);
-                await addLog(`แอดมินลบสินค้า: ${name}`);
+                await addLog(`ลบสินค้า: ${name}`);
                 await saveDataToDB();
                 renderProducts();
             }
@@ -566,7 +586,7 @@
         }
 
         fetchData();
-        setInterval(fetchData, 5000); // ดึงข้อมูลและอัปเดตแบบเรียลไทม์ทุก 5 วินาที
+        setInterval(fetchData, 5000);
     </script>
 </body>
 </html>
