@@ -1,6 +1,9 @@
 import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
+    // ตั้งค่า Header ให้แน่ใจว่าตอบกลับเป็น JSON เสมอ แม้จะเกิด Error
+    res.setHeader('Content-Type', 'application/json');
+
     if (req.method === 'GET') {
         try {
             let data = await kv.get('yulgang_store_data');
@@ -14,13 +17,19 @@ export default async function handler(req, res) {
                     ],
                     orders: [],
                     chats: {},
-                    logs: [{ time: new Date().toLocaleString('th-TH'), text: "ระบบเริ่มต้นทำงานสำเร็จ (System Initialized)" }]
+                    logs: [{ time: new Date().toLocaleTimeString('th-TH'), text: "ระบบเริ่มต้นทำงานสำเร็จ" }]
                 };
                 await kv.set('yulgang_store_data', data);
             }
             return res.status(200).json(data);
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            // ส่งค่ากลับเป็น JSON เสมอเพื่อไม่ให้เว็บพัง
+            return res.status(500).json({ 
+                products: [], 
+                orders: [], 
+                chats: {}, 
+                logs: [{ time: new Date().toLocaleTimeString('th-TH'), text: "DB Error: " + error.message }] 
+            });
         }
     }
 
