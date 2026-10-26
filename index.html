@@ -16,7 +16,7 @@
         </div>
 
         <div class="flex items-center space-x-3">
-            <div id="admin-menu-btn-container"></div>
+            <div id="admin-nav-menu"></div>
             
             <div id="auth-container">
                 <a href="/api/login" id="login-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition duration-200 flex items-center space-x-2 shadow-md">
@@ -34,16 +34,48 @@
             <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ฟาร์มเอง ขายจริง ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
         </div>
 
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-amber-400">🛒 รายการของดรอปจากมอนสเตอร์</h2>
-            <div id="admin-action-btn"></div>
+        <!-- แผงควบคลุมสำหรับ Owner เท่านั้น -->
+        <div id="owner-dashboard" class="hidden bg-gray-800/90 border border-red-500/50 rounded-2xl p-6 mb-10 shadow-2xl">
+            <h2 class="text-2xl font-bold text-red-400 mb-4 flex items-center space-x-2">
+                <span>🛡️ แผงควบคุมเจ้าของเซิร์ฟเวอร์ (Admin Panel)</span>
+            </h2>
+            <div class="flex flex-wrap gap-4 mb-6">
+                <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2 shadow">
+                    <span>➕ เพิ่มรายการของดรอป</span>
+                </button>
+            </div>
+            
+            <h3 class="text-lg font-bold text-amber-300 mb-3">📦 รายการออร์เดอร์ที่ลูกค้าสั่งซื้อ (รอตรวจสอบ)</h3>
+            <div id="admin-orders-list" class="space-y-3">
+                <p class="text-gray-400 text-sm">ยังไม่มีออร์เดอร์ใหม่</p>
+            </div>
         </div>
 
-        <!-- Grid สินค้า -->
+        <!-- ส่วนแสดงสินค้า -->
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-amber-400">🛒 รายการของดรอปจากมอนสเตอร์</h2>
+        </div>
+
         <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="text-center col-span-3 text-gray-400 py-10">กำลังโหลดข้อมูลสินค้า...</div>
         </div>
     </main>
+
+    <!-- กล่องแชทติดต่อพูดคุย (Lobby Chat) -->
+    <section class="container mx-auto px-4 mb-12">
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-xl max-w-3xl mx-auto">
+            <h3 class="text-xl font-bold text-amber-300 mb-4 flex items-center space-x-2">
+                <span>💬 ห้องพูดคุยและติดต่อสอบถาม (Live Chat)</span>
+            </h3>
+            <div id="chat-box" class="bg-gray-900 border border-gray-700 rounded-xl p-4 h-64 overflow-y-auto mb-4 space-y-3">
+                <div class="text-center text-gray-500 text-sm">กำลังโหลดข้อความ...</div>
+            </div>
+            <form id="chat-form" onsubmit="handleSendMessage(event)" class="flex gap-2">
+                <input type="text" id="chat-input" placeholder="พิมพ์ข้อความพูดคุยหรือสอบถามแอดมินที่นี่..." required class="flex-grow bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-6 py-2 rounded-lg transition">ส่ง</button>
+            </form>
+        </div>
+    </section>
 
     <!-- Modal สร้างแพ็กเกจ -->
     <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
@@ -61,7 +93,7 @@
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-gray-300 text-sm mb-1">จำนวนชิ้น</label>
-                        <input type="number" id="p-amount" min="1" value="1" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น 1 หรือ 100">
+                        <input type="number" id="p-amount" min="1" value="1" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500">
                     </div>
                     <div>
                         <label class="block text-gray-300 text-sm mb-1">ราคารวม</label>
@@ -77,7 +109,7 @@
                 </div>
                 <div class="mb-6">
                     <label class="block text-gray-300 text-sm mb-1">ลิงก์รูปภาพไอเทม (Image URL)</label>
-                    <input type="url" id="p-image" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="https://example.com/item.png (ถ้าไม่มีปล่อยว่างได้)">
+                    <input type="url" id="p-image" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="https://example.com/item.png">
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button type="button" onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">ยกเลิก</button>
@@ -96,6 +128,8 @@
     <script>
         const OWNER_DISCORD_ID = "550122613087666177";
         let productsList = [];
+        let ordersList = [];
+        let chatMessages = [];
 
         const urlParams = new URLSearchParams(window.location.search);
         const userParam = urlParams.get('user');
@@ -112,7 +146,7 @@
 
         const savedUser = localStorage.getItem('discord_user');
         const authContainer = document.getElementById('auth-container');
-        const adminActionBtn = document.getElementById('admin-action-btn');
+        const ownerDashboard = document.getElementById('owner-dashboard');
         let isOwner = false;
 
         if (savedUser) {
@@ -123,6 +157,7 @@
 
             if (user.id === OWNER_DISCORD_ID) {
                 isOwner = true;
+                ownerDashboard.classList.remove('hidden');
             }
 
             authContainer.innerHTML = `
@@ -139,22 +174,31 @@
             `;
         }
 
-        if (isOwner) {
-            adminActionBtn.innerHTML = `
-                <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2 shadow-lg">
-                    <span>➕ เพิ่มรายการของดรอป</span>
-                </button>
-            `;
-        }
-
-        async function fetchProducts() {
+        async function fetchData() {
             try {
                 const res = await fetch('/api/products');
-                productsList = await res.json();
+                const data = await res.json();
+                productsList = data.products || data; // รองรับรูปแบบข้อมูลเดิมและใหม่
+                ordersList = data.orders || [];
+                chatMessages = data.chats || [];
+                
                 renderProducts();
+                renderOrders();
+                renderChat();
             } catch (err) {
-                console.error("Failed to fetch products", err);
-                document.getElementById('product-grid').innerHTML = `<div class="text-center col-span-3 text-red-400 py-10">ไม่สามารถโหลดข้อมูลสินค้าได้</div>`;
+                console.error("Failed to fetch data", err);
+            }
+        }
+
+        async function saveDataToDB() {
+            try {
+                await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ products: productsList, orders: ordersList, chats: chatMessages })
+                });
+            } catch (err) {
+                console.error("Failed to save data", err);
             }
         }
 
@@ -168,37 +212,18 @@
             }
 
             productsList.forEach(p => {
-                let deleteBtnHtml = '';
-                if (isOwner) {
-                    deleteBtnHtml = `
-                        <button onclick="deleteProduct(${p.id})" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">
-                            🗑️ ลบ
-                        </button>
-                    `;
-                }
-
-                let imageDisplay = p.image 
-                    ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">`
-                    : `<div class="flex flex-col items-center justify-center text-amber-100"><span class="text-5xl mb-1">📦</span><span class="font-black text-xs text-amber-300">Yulgang Item</span></div>`;
-
+                let deleteBtnHtml = isOwner ? `<button onclick="deleteProduct(${p.id})" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">🗑️ ลบ</button>` : '';
+                let imageDisplay = p.image ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">` : `<div class="flex flex-col items-center justify-center text-amber-100"><span class="text-5xl mb-1">📦</span><span class="font-black text-xs text-amber-300">Yulgang Item</span></div>`;
                 let currencyType = p.currency || 'บาท';
                 let amount = p.amount || 1;
-                
-                // คำนวณราคาต่อชิ้นถ้าจำนวนมากกว่า 1 ชิ้น
-                let pricePerUnitHtml = '';
-                if (amount > 1) {
-                    let perUnit = (p.price / amount).toFixed(2);
-                    pricePerUnitHtml = `<div class="text-xs text-gray-400 mt-0.5">(ตกชิ้นละประมาณ ${perUnit} ${currencyType})</div>`;
-                }
+                let perUnitHtml = amount > 1 ? `<div class="text-xs text-gray-400 mt-0.5">(ตกชิ้นละประมาณ ${(p.price / amount).toFixed(2)} ${currencyType})</div>` : '';
 
                 grid.innerHTML += `
                     <div class="bg-gray-800 border border-gray-700 hover:border-amber-500/50 rounded-xl p-5 flex flex-col justify-between transition duration-300 shadow-lg relative">
                         <div>
                             <div class="bg-gradient-to-br from-amber-600/80 to-gray-900 h-44 rounded-lg mb-4 flex items-center justify-center overflow-hidden shadow-inner relative">
                                 ${imageDisplay}
-                                <span class="absolute top-2 right-2 bg-black/70 text-amber-300 text-xs font-bold px-2 py-1 rounded-md border border-amber-500/30">
-                                    📦 จำนวน: ${amount} ชิ้น
-                                </span>
+                                <span class="absolute top-2 right-2 bg-black/70 text-amber-300 text-xs font-bold px-2 py-1 rounded-md border border-amber-500/30">📦 ${amount} ชิ้น</span>
                             </div>
                             <h3 class="text-xl font-bold text-amber-300">${p.name}</h3>
                             <p class="text-gray-400 text-sm mt-2">${p.desc}</p>
@@ -206,11 +231,11 @@
                         <div class="mt-6 border-t border-gray-700/50 pt-4 flex items-center justify-between">
                             <div>
                                 <span class="text-emerald-400 font-extrabold text-xl">${p.price} ${currencyType}</span>
-                                ${pricePerUnitHtml}
+                                ${perUnitHtml}
                             </div>
                             <div class="flex items-center space-x-2">
                                 ${deleteBtnHtml}
-                                <button onclick="buyItem('${p.name}')" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-4 py-2 rounded-lg text-sm transition shadow-md">สั่งซื้อ</button>
+                                <button onclick="buyItem('${p.name}', ${p.price}, '${currencyType}')" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-4 py-2 rounded-lg text-sm transition shadow-md">สั่งซื้อ</button>
                             </div>
                         </div>
                     </div>
@@ -218,15 +243,136 @@
             });
         }
 
-        function openModal() {
-            document.getElementById('create-modal').classList.remove('hidden');
-            document.getElementById('create-modal').classList.add('flex');
+        function renderOrders() {
+            const container = document.getElementById('admin-orders-list');
+            if (!isOwner) return;
+
+            if (ordersList.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-sm">ยังไม่มีออร์เดอร์สั่งซื้อในขณะนี้</p>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            ordersList.forEach(o => {
+                let statusBadge = o.status === 'รอการยืนยัน' 
+                    ? `<span class="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold">⏳ รอการยืนยัน</span>`
+                    : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded text-xs font-bold">✅ ยืนยันแล้ว</span>`;
+
+                container.innerHTML += `
+                    <div class="bg-gray-900 border border-gray-700 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <div class="flex items-center space-x-2 mb-1">
+                                <span class="font-bold text-amber-300">${o.itemName}</span>
+                                <span class="text-gray-400 text-sm">(${o.price} ${o.currency})</span>
+                                ${statusBadge}
+                            </div>
+                            <p class="text-sm text-gray-300">ผู้สั่งซื้อ: <strong class="text-indigo-400">${o.username}</strong></p>
+                            <p class="text-xs text-gray-500">เวลาสั่ง: ${o.time}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${o.status === 'รอการยืนยัน' ? `<button onclick="approveOrder(${o.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">✔️ ยืนยันออร์เดอร์</button>` : ''}
+                            <button onclick="deleteOrder(${o.id})" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">🗑️ ลบ</button>
+                        </div>
+                    </div>
+                `;
+            });
         }
 
-        function closeModal() {
-            document.getElementById('create-modal').classList.remove('flex');
-            document.getElementById('create-modal').classList.add('hidden');
+        function renderChat() {
+            const chatBox = document.getElementById('chat-box');
+            if (chatMessages.length === 0) {
+                chatBox.innerHTML = `<div class="text-center text-gray-500 text-sm">ยังไม่มีข้อความสนทนา เริ่มพูดคุยกันได้เลย!</div>`;
+                return;
+            }
+
+            chatBox.innerHTML = '';
+            chatMessages.forEach(c => {
+                let badge = c.isAdmin ? `<span class="bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded font-bold ml-1">OWNER</span>` : '';
+                chatBox.innerHTML += `
+                    <div class="text-sm">
+                        <span class="font-bold text-amber-400">${c.username}</span> ${badge}
+                        <span class="text-xs text-gray-500 ml-2">${c.time}</span>
+                        <p class="text-gray-200 mt-0.5 bg-gray-800/60 p-2 rounded-lg border border-gray-700/50">${c.message}</p>
+                    </div>
+                `;
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
+
+        async function buyItem(name, price, currency) {
+            const userStr = localStorage.getItem('discord_user');
+            if (!userStr) {
+                alert('⚠️ กรุณาล็อกอินด้วยบัญชี Discord ก่อนทำการสั่งซื้อครับ');
+                window.location.href = '/api/login';
+                return;
+            }
+
+            const user = JSON.parse(userStr);
+            const newOrder = {
+                id: Date.now(),
+                itemName: name,
+                price: price,
+                currency: currency,
+                username: user.username,
+                userId: user.id,
+                status: 'รอการยืนยัน',
+                time: new Date().toLocaleString('th-TH')
+            };
+
+            ordersList.unshift(newOrder);
+            await saveDataToDB();
+            renderOrders();
+            alert(`🎉 สั่งซื้อสำเร็จ! ระบบได้ส่งออร์เดอร์ [${name}] ไปยังเจ้าของร้านแล้ว กรุณารอการยืนยันครับ`);
+        }
+
+        async function approveOrder(orderId) {
+            const order = ordersList.find(o => o.id === orderId);
+            if (order) {
+                order.status = 'ยืนยันแล้ว';
+                await saveDataToDB();
+                renderOrders();
+                alert('✅ ยืนยันออร์เดอร์เรียบร้อยแล้ว!');
+            }
+        }
+
+        async function deleteOrder(orderId) {
+            if (confirm('⚠️ ต้องการลบออร์เดอร์นี้ใช่หรือไม่?')) {
+                ordersList = ordersList.filter(o => o.id !== orderId);
+                await saveDataToDB();
+                renderOrders();
+            }
+        }
+
+        async function handleSendMessage(event) {
+            event.preventDefault();
+            const userStr = localStorage.getItem('discord_user');
+            if (!userStr) {
+                alert('⚠️ กรุณาล็อกอินด้วยบัญชี Discord ก่อนพิมพ์ข้อความครับ');
+                window.location.href = '/api/login';
+                return;
+            }
+
+            const user = JSON.parse(userStr);
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const newMsg = {
+                id: Date.now(),
+                username: user.username,
+                isAdmin: user.id === OWNER_DISCORD_ID,
+                message: message,
+                time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            chatMessages.push(newMsg);
+            input.value = '';
+            await saveDataToDB();
+            renderChat();
+        }
+
+        function openModal() { document.getElementById('create-modal').classList.remove('hidden'); document.getElementById('create-modal').classList.add('flex'); }
+        function closeModal() { document.getElementById('create-modal').classList.remove('flex'); document.getElementById('create-modal').classList.add('hidden'); }
 
         async function handleCreateProduct(event) {
             event.preventDefault();
@@ -237,18 +383,9 @@
             const currency = document.getElementById('p-currency').value;
             const image = document.getElementById('p-image').value;
 
-            const newProduct = {
-                id: Date.now(),
-                name,
-                desc,
-                amount,
-                price,
-                currency,
-                image
-            };
-
+            const newProduct = { id: Date.now(), name, desc, amount, price, currency, image };
             productsList.push(newProduct);
-            await saveProductsToDB();
+            await saveDataToDB();
             closeModal();
             document.getElementById('create-product-form').reset();
             renderProducts();
@@ -258,32 +395,8 @@
         async function deleteProduct(id) {
             if (confirm('⚠️ คุณแน่ใจหรือไม่ที่จะลบรายการนี้?')) {
                 productsList = productsList.filter(p => p.id !== id);
-                await saveProductsToDB();
+                await saveDataToDB();
                 renderProducts();
-                alert('🗑️ ลบรายการเรียบร้อยแล้ว');
-            }
-        }
-
-        async function saveProductsToDB() {
-            try {
-                await fetch('/api/products', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ products: productsList })
-                });
-            } catch (err) {
-                console.error("Failed to save to database", err);
-            }
-        }
-
-        function buyItem(itemName) {
-            const user = localStorage.getItem('discord_user');
-            if (!user) {
-                alert('⚠️ กรุณาล็อกอินด้วยบัญชี Discord ก่อนทำการสั่งซื้อครับ');
-                window.location.href = '/api/login';
-            } else {
-                const userData = JSON.parse(user);
-                alert(`🎉 คุณ [${userData.username}] ได้ทำรายการสั่งซื้อ: ${itemName}\n(ระบบกำลังพาไปยังขั้นตอนชำระเงิน...)`);
             }
         }
 
@@ -292,7 +405,9 @@
             window.location.reload();
         }
 
-        fetchProducts();
+        // โหลดข้อมูลทุกๆ 5 วินาที เพื่อให้แชทและออร์เดอร์อัปเดตแบบเรียลไทม์
+        fetchData();
+        setInterval(fetchData, 5000);
     </script>
 </body>
 </html>
