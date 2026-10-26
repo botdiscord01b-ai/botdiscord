@@ -1,28 +1,46 @@
-// ใช้หน่วยความจำกลางบนเซิร์ฟเวอร์โดยไม่ต้องเรียกแพ็กเกจภายนอกให้เกิด Error
-let globalStore = {
+const KV_URL = process.env.KV_REST_API_URL;
+const KV_TOKEN = process.env.KV_REST_API_TOKEN;
+const STORE_KEY = 'masaru_shop_permanent_data';
+
+// ฟังก์ชันช่วยยิงข้อมูลไปยัง Upstash REST API โดยไม่พึ่งไลบรารีภายนอก
+async function kvFetch(command, ...args) {
+    if (!KV_URL || !KV_TOKEN) return null;
+    try {
+        const response = await fetch(`${KV_URL}/${command}/${args.map(encodeURIComponent).join('/')}`, {
+            headers: { Authorization: `Bearer ${KV_TOKEN}` }
+        });
+        const data = await response.json();
+        return data.result;
+    } catch (err) {
+        console.error("Upstash Fetch Error:", err);
+        return null;
+    }
+}
+
+let fallbackMemory = {
     products: [],
     orders: [],
     chats: {},
-    logs: [
-        { time: new Date().toLocaleTimeString('th-TH'), text: "ระบบเซิร์ฟเวอร์เปิดใช้งานสำเร็จ (Stable Mode)" }
-    ]
+    logs: [{ time: new Date().toLocaleTimeString('th-TH'), text: "ระบบเปิดใช้งานโหมด HTTP REST API" }]
 };
 
 export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
 
     if (req.method === 'GET') {
         try {
-            return res.status(200).json(globalStore);
+            let data = await kvFetch('get', STORE_KEY);
+            if (data && typeof data === 'string') {
+                data = JSON.parse(data);
+            }
+            if (!data) {
+                data = fallbackMemory;
+                await kvFetch('set', STORE_KEY, JSON.stringify(data));
+            }
+            return res.status(200).json(data);
         } catch (error) {
-            return res.status(200).json(globalStore);
+            return res.status(200).json(fallbackMemory);
         }
     }
 
@@ -33,12 +51,15 @@ export default async function handler(req, res) {
                 bodyData = JSON.parse(bodyData);
             }
 
-            globalStore = {
-                products: Array.isArray(bodyData.products) ? bodyData.products : [],
-                orders: Array.isArray(bodyData.orders) ? bodyData.orders : [],
-                chats: (bodyData.chats && typeof bodyData.chats === 'object') ? bodyData.chats : {},
-                logs: Array.isArray(bodyData.logs) ? bodyData.logs : []
+            const storeData = {
+                products: bodyData.products || [],
+                orders: bodyData.orders || [],
+                chats: bodyData.chats || {},
+                logs: bodyData.logs || []
             };
+
+            await kvFetch('set', STORE_KEY, JSON.stringify(storeData));
+            fallbackMemory = storeData;
 
             return res.status(200).json({ success: true });
         } catch (error) {
