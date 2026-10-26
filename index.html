@@ -16,7 +16,6 @@
         </div>
 
         <div class="flex items-center space-x-3">
-            <!-- ปุ่มสลับเปิด-ปิด Sidebar แอดมิน (จะแสดงเฉพาะเมื่อเป็น Owner) -->
             <button id="toggle-admin-btn" onclick="toggleSidebar()" class="hidden bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-2 rounded-lg text-xs md:text-sm transition flex items-center space-x-1 shadow-lg">
                 <span>🛡️ แผงควบคุมแอดมิน</span>
             </button>
@@ -30,10 +29,10 @@
         </div>
     </header>
 
-    <!-- Overlay ฉากหลังสีดำจางๆ ตอนเปิด Sidebar -->
+    <!-- Overlay -->
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300"></div>
 
-    <!-- 🛡️ แถบด้านข้างสำหรับ Owner (Collapsible Slide-Out Admin Drawer) -->
+    <!-- Admin Drawer -->
     <aside id="owner-sidebar" class="fixed top-0 left-0 h-full w-80 md:w-96 bg-gray-800/95 border-r border-red-500/50 p-5 shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 overflow-y-auto space-y-6">
         <div class="flex justify-between items-center border-b border-gray-700 pb-3">
             <h2 class="text-lg font-bold text-red-400 flex items-center space-x-2">
@@ -51,7 +50,6 @@
             </button>
         </div>
 
-        <!-- 1. ออร์เดอร์ -->
         <div>
             <h3 class="text-xs font-bold text-amber-300 mb-2">📦 ออร์เดอร์สินค้า (รอตรวจสอบ)</h3>
             <div id="admin-orders-list" class="bg-gray-900 border border-gray-700 p-2.5 rounded-xl space-y-2 max-h-48 overflow-y-auto text-xs">
@@ -59,7 +57,6 @@
             </div>
         </div>
 
-        <!-- 2. แชทลูกค้า -->
         <div>
             <h3 class="text-xs font-bold text-amber-300 mb-2">💬 กล่องข้อความลูกค้า</h3>
             <div class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 h-56 flex flex-col justify-between text-xs">
@@ -76,7 +73,6 @@
             </div>
         </div>
 
-        <!-- 3. Debug Logs -->
         <div>
             <h3 class="text-xs font-bold text-amber-300 mb-2">🔍 Debug Activity Logs</h3>
             <div id="admin-logs-box" class="bg-black/90 border border-gray-700 rounded-xl p-3 h-44 overflow-y-auto font-mono text-[10px] text-emerald-400 space-y-1">
@@ -96,13 +92,12 @@
             <h2 class="text-2xl font-bold text-amber-400">🛒 รายการของดรอปจากมอนสเตอร์</h2>
         </div>
 
-        <!-- Grid แสดงสินค้าหลัก (เต็มความกว้าง 100%) -->
         <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
             <div class="text-center col-span-4 text-gray-400 py-10">กำลังโหลดข้อมูลสินค้า...</div>
         </div>
     </main>
 
-    <!-- ช่องทางติดต่อสำหรับลูกค้าทั่วไป -->
+    <!-- Customer Chat -->
     <section id="customer-chat-section" class="container mx-auto px-4 mb-12 hidden">
         <div class="bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-xl max-w-3xl mx-auto">
             <h3 class="text-xl font-bold text-amber-300 mb-2 flex items-center space-x-2">
@@ -130,6 +125,17 @@
                     <input type="text" id="p-name" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="เช่น หินออฟชั่นพลังโจมตี +3">
                 </div>
                 <div class="mb-4">
+                    <label class="block text-gray-300 text-sm mb-1">ประเภทไอเทม (Emoji หมวดหมู่)</label>
+                    <select id="p-emoji" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                        <option value="💎">💎 หิน (Stone/Gem)</option>
+                        <option value="⚔️">⚔️ อาวุธ (Weapon)</option>
+                        <option value="🛡️">🛡️ เกราะ / เครื่องป้องกัน (Armor)</option>
+                        <option value="🧪">🧪 ยา / ฟื้นพลัง (Potion/Buff)</option>
+                        <option value="📦">📦 ประกอบตอนสร้างแพ็ก (Material/Pack)</option>
+                        <option value="✨">✨ อื่นๆ (General Drop)</option>
+                    </select>
+                </div>
+                <div class="mb-4">
                     <label class="block text-gray-300 text-sm mb-1">รายละเอียด</label>
                     <textarea id="p-desc" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="รายละเอียด..."></textarea>
                 </div>
@@ -151,7 +157,7 @@
                     </select>
                 </div>
                 <div class="mb-6">
-                    <label class="block text-gray-300 text-sm mb-1">ลิงก์รูปภาพไอเทม (Image URL)</label>
+                    <label class="block text-gray-300 text-sm mb-1">ลิงก์รูปภาพไอเทม (Image URL - ถ้าไม่ใส่จะแสดง Emoji แทน)</label>
                     <input type="url" id="p-image" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="https://example.com/item.png">
                 </div>
                 <div class="flex justify-end space-x-3">
@@ -204,7 +210,7 @@
 
             if (currentUser.id === OWNER_DISCORD_ID) {
                 isOwner = true;
-                toggleAdminBtn.classList.remove('hidden'); // แสดงปุ่มสลับเปิดแผงแอดมิน
+                toggleAdminBtn.classList.remove('hidden');
             } else {
                 customerChatSection.classList.remove('hidden');
             }
@@ -292,7 +298,13 @@
 
             productsList.forEach(p => {
                 let deleteBtnHtml = isOwner ? `<button onclick="deleteProduct(${p.id}, '${p.name}')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">🗑️ ลบ</button>` : '';
-                let imageDisplay = p.image ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">` : `<div class="flex flex-col items-center justify-center text-amber-100"><span class="text-5xl mb-1">📦</span><span class="font-black text-xs text-amber-300">Yulgang Item</span></div>`;
+                
+                // ตรวจสอบรูปภาพ: ถ้ามีลิงก์รูปให้แสดงรูป ถ้าไม่มีให้แสดง Emoji หมวดหมู่ที่เลือก
+                let itemEmoji = p.emoji || '📦';
+                let imageDisplay = p.image 
+                    ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">` 
+                    : `<div class="flex flex-col items-center justify-center text-amber-100"><span class="text-6xl mb-1">${itemEmoji}</span><span class="font-bold text-[10px] text-amber-300">Yulgang Drop</span></div>`;
+
                 let currencyType = p.currency || 'บาท';
                 let amount = p.amount || 1;
                 let perUnitHtml = amount > 1 ? `<div class="text-xs text-gray-400 mt-0.5">(ตกชิ้นละประมาณ ${(p.price / amount).toFixed(2)} ${currencyType})</div>` : '';
@@ -554,13 +566,14 @@
         async function handleCreateProduct(event) {
             event.preventDefault();
             const name = document.getElementById('p-name').value;
+            const emoji = document.getElementById('p-emoji').value;
             const desc = document.getElementById('p-desc').value;
             const amount = Number(document.getElementById('p-amount').value) || 1;
             const price = Number(document.getElementById('p-price').value);
             const currency = document.getElementById('p-currency').value;
             const image = document.getElementById('p-image').value;
 
-            const newProduct = { id: Date.now(), name, desc, amount, price, currency, image };
+            const newProduct = { id: Date.now(), name, emoji, desc, amount, price, currency, image };
             productsList.push(newProduct);
             
             await addLog(`เพิ่มสินค้า: ${name} (${price} ${currency})`);
