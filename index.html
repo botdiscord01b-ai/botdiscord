@@ -32,44 +32,51 @@
             <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ฟาร์มเอง ขายจริง ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
         </div>
 
-        <!-- แผงควบคุมสำหรับ Owner (จัดการสินค้า + จัดการออร์เดอร์ + กล่องข้อความลูกค้า) -->
+        <!-- แผงควบคุมสำหรับ Owner (รวมสินค้า + ออร์เดอร์ + แชทลูกค้า + ระบบ Debug Logs) -->
         <div id="owner-dashboard" class="hidden bg-gray-800/90 border border-red-500/50 rounded-2xl p-6 mb-10 shadow-2xl">
             <h2 class="text-2xl font-bold text-red-400 mb-4 flex items-center space-x-2">
-                <span>🛡️ แผงควบคุมเจ้าของเซิร์ฟเวอร์ (Admin Panel)</span>
+                <span>🛡️ แผงควบคุมเจ้าของเซิร์ฟเวอร์ (Admin Panel & Debug)</span>
             </h2>
             <div class="flex flex-wrap gap-4 mb-6">
                 <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2 shadow">
                     <span>➕ เพิ่มรายการของดรอป</span>
                 </button>
+                <button onclick="clearLogs()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold px-4 py-2 rounded-lg text-sm transition">
+                    🧹 ล้างประวัติ Logs
+                </button>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- จัดการออร์เดอร์ -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 1. จัดการออร์เดอร์ -->
                 <div>
-                    <h3 class="text-lg font-bold text-amber-300 mb-3">📦 ออร์เดอร์สินค้า (รอตรวจสอบ)</h3>
-                    <div id="admin-orders-list" class="space-y-3 max-h-80 overflow-y-auto pr-2">
-                        <p class="text-gray-400 text-sm">ยังไม่มีออร์เดอร์ใหม่</p>
+                    <h3 class="text-base font-bold text-amber-300 mb-2">📦 ออร์เดอร์สินค้า</h3>
+                    <div id="admin-orders-list" class="bg-gray-900 border border-gray-700 p-3 rounded-xl space-y-2 h-72 overflow-y-auto">
+                        <p class="text-gray-500 text-xs">ยังไม่มีออร์เดอร์</p>
                     </div>
                 </div>
 
-                <!-- กล่องข้อความลูกค้าทักมาหาแอดมิน -->
+                <!-- 2. แชทลูกค้า -->
                 <div>
-                    <h3 class="text-lg font-bold text-amber-300 mb-3">💬 กล่องข้อความลูกค้าติดต่อ</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 h-80">
-                        <!-- รายชื่อลูกค้า -->
-                        <div id="admin-chat-users" class="bg-gray-900 border border-gray-700 rounded-xl p-2 overflow-y-auto space-y-1">
-                            <span class="text-xs text-gray-500">เลือกชื่อลูกค้าเพื่อคุย</span>
+                    <h3 class="text-base font-bold text-amber-300 mb-2">💬 แชทร้านค้าส่วนตัว</h3>
+                    <div class="bg-gray-900 border border-gray-700 rounded-xl p-2 h-72 flex flex-col justify-between">
+                        <div id="admin-chat-users" class="overflow-y-auto space-y-1 max-h-24 border-b border-gray-800 pb-1 mb-1">
+                            <span class="text-[10px] text-gray-500">รายชื่อลูกค้า</span>
                         </div>
-                        <!-- หน้าต่างแชทร้านค้า -->
-                        <div class="md:col-span-2 bg-gray-900 border border-gray-700 rounded-xl p-3 flex flex-col justify-between h-full">
-                            <div id="admin-chat-messages" class="overflow-y-auto space-y-2 flex-grow pr-1 text-sm">
-                                <div class="text-center text-gray-500 text-xs py-10">เลือกแชทลูกค้าจากด้านซ้าย</div>
-                            </div>
-                            <form id="admin-chat-form" onsubmit="handleAdminSendMessage(event)" class="mt-2 flex gap-2 hidden">
-                                <input type="text" id="admin-chat-input" placeholder="พิมพ์ตอบกลับลูกค้า..." required class="flex-grow bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
-                                <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-4 py-1.5 rounded-lg text-xs transition">ส่ง</button>
-                            </form>
+                        <div id="admin-chat-messages" class="overflow-y-auto space-y-1 flex-grow text-xs pr-1">
+                            <div class="text-center text-gray-500 text-[10px] py-6">เลือกแชทร้านค้า</div>
                         </div>
+                        <form id="admin-chat-form" onsubmit="handleAdminSendMessage(event)" class="mt-1 flex gap-1 hidden">
+                            <input type="text" id="admin-chat-input" placeholder="ตอบกลับ..." required class="flex-grow bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-amber-500">
+                            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-3 py-1 rounded text-xs">ส่ง</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 3. ระบบ Debug Logs (ตรวจสอบกิจกรรมทุกอย่างในเว็บ) -->
+                <div>
+                    <h3 class="text-base font-bold text-amber-300 mb-2">🔍 เว็บไซต์ Activity Logs (Debug)</h3>
+                    <div id="admin-logs-box" class="bg-black/80 border border-gray-700 rounded-xl p-3 h-72 overflow-y-auto font-mono text-[11px] text-emerald-400 space-y-1">
+                        <div>กำลังโหลด Logs...</div>
                     </div>
                 </div>
             </div>
@@ -85,13 +92,13 @@
         </div>
     </main>
 
-    <!-- ช่องทางติดต่อสำหรับลูกค้าทั่วไป (Private Chat with Admin) -->
+    <!-- ช่องทางติดต่อสำหรับลูกค้าทั่วไป -->
     <section id="customer-chat-section" class="container mx-auto px-4 mb-12 hidden">
         <div class="bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-xl max-w-3xl mx-auto">
             <h3 class="text-xl font-bold text-amber-300 mb-2 flex items-center space-x-2">
                 <span>💬 ช่องทางติดต่อส่วนตัวกับเจ้าของร้าน (Private Inbox)</span>
             </h3>
-            <p class="text-xs text-gray-400 mb-4">ส่งข้อความสอบถาม ปรึกษา หรือแจ้งโอนเงินกับแอดมินได้โดยตรงที่นี่ (เห็นเฉพาะคุณและแอดมินเท่านั้น)</p>
+            <p class="text-xs text-gray-400 mb-4">ส่งข้อความสอบถาม ปรึกษา หรือแจ้งโอนเงินกับแอดมินได้โดยตรง</p>
             
             <div id="customer-chat-box" class="bg-gray-900 border border-gray-700 rounded-xl p-4 h-64 overflow-y-auto mb-4 space-y-3 text-sm">
                 <div class="text-center text-gray-500 text-xs">กำลังโหลดประวัติการสนทนา...</div>
@@ -103,7 +110,7 @@
         </div>
     </section>
 
-    <!-- Modal สร้างแพ็กเกจสินค้า -->
+    <!-- Modal สร้างสินค้า -->
     <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-gray-800 border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-amber-300 mb-4">➕ เพิ่มรายการของดรอปใหม่</h3>
@@ -114,7 +121,7 @@
                 </div>
                 <div class="mb-4">
                     <label class="block text-gray-300 text-sm mb-1">รายละเอียด</label>
-                    <textarea id="p-desc" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="ระบุรายละเอียด..."></textarea>
+                    <textarea id="p-desc" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="รายละเอียด..."></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
@@ -155,7 +162,8 @@
         const OWNER_DISCORD_ID = "550122613087666177";
         let productsList = [];
         let ordersList = [];
-        let chatThreads = {}; // เก็บข้อความแยกตาม ID ลูกค้า { userId: [{sender, message, time, isAdmin}] }
+        let chatThreads = {};
+        let activityLogs = [];
         let selectedChatUserId = null;
         let currentUser = null;
 
@@ -203,18 +211,28 @@
             `;
         }
 
+        async function addLog(actionText) {
+            const timeStr = new Date().toLocaleTimeString('th-TH');
+            const logEntry = { time: timeStr, text: actionText };
+            activityLogs.unshift(logEntry);
+            if (activityLogs.length > 50) activityLogs.pop(); // เก็บประวัติล่าสุด 50 รายการ
+            await saveDataToDB();
+        }
+
         async function fetchData() {
             try {
                 const res = await fetch('/api/products');
                 const data = await res.json();
-                productsList = data.products || data;
+                productsList = data.products || [];
                 ordersList = data.orders || [];
                 chatThreads = data.chats || {};
+                activityLogs = data.logs || [];
                 
                 renderProducts();
                 if (isOwner) {
                     renderAdminChatUsers();
                     renderOrders();
+                    renderLogs();
                 } else if (currentUser) {
                     renderCustomerChat();
                 }
@@ -228,7 +246,12 @@
                 await fetch('/api/products', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ products: productsList, orders: ordersList, chats: chatThreads })
+                    body: JSON.stringify({ 
+                        products: productsList, 
+                        orders: ordersList, 
+                        chats: chatThreads,
+                        logs: activityLogs
+                    })
                 });
             } catch (err) {
                 console.error("Failed to save data", err);
@@ -245,7 +268,7 @@
             }
 
             productsList.forEach(p => {
-                let deleteBtnHtml = isOwner ? `<button onclick="deleteProduct(${p.id})" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">🗑️ ลบ</button>` : '';
+                let deleteBtnHtml = isOwner ? `<button onclick="deleteProduct(${p.id}, '${p.name}')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">🗑️ ลบ</button>` : '';
                 let imageDisplay = p.image ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">` : `<div class="flex flex-col items-center justify-center text-amber-100"><span class="text-5xl mb-1">📦</span><span class="font-black text-xs text-amber-300">Yulgang Item</span></div>`;
                 let currencyType = p.currency || 'บาท';
                 let amount = p.amount || 1;
@@ -276,14 +299,37 @@
             });
         }
 
-        // --- ส่วนแชทลูกค้าทั่วไป ---
+        function renderLogs() {
+            const logsBox = document.getElementById('admin-logs-box');
+            if (!isOwner) return;
+
+            if (activityLogs.length === 0) {
+                logsBox.innerHTML = `<div class="text-gray-500 text-center">ไม่มีบันทึก Log</div>`;
+                return;
+            }
+
+            logsBox.innerHTML = '';
+            activityLogs.forEach(l => {
+                logsBox.innerHTML += `<div><span class="text-gray-500">[${l.time}]</span> ${l.text}</div>`;
+            });
+        }
+
+        async function clearLogs() {
+            if (confirm('ต้องการล้างประวัติ Logs ทั้งหมดใช่หรือไม่?')) {
+                activityLogs = [];
+                await addLog('แอดมินล้างประวัติ Logs ทั้งหมด');
+                renderLogs();
+            }
+        }
+
+        // --- ระบบแชทลูกค้าทั่วไป ---
         function renderCustomerChat() {
             if (!currentUser) return;
             const chatBox = document.getElementById('customer-chat-box');
             const userMessages = chatThreads[currentUser.id] || [];
 
             if (userMessages.length === 0) {
-                chatBox.innerHTML = `<div class="text-center text-gray-500 text-xs py-10">ยังไม่มีประวัติการสนทนา พิมพ์ข้อความทักหาแอดมินได้เลยครับ</div>`;
+                chatBox.innerHTML = `<div class="text-center text-gray-500 text-xs py-10">ยังไม่มีประวัติการสนทนา ทักหาแอดมินได้เลย</div>`;
                 return;
             }
 
@@ -306,19 +352,13 @@
 
         async function handleCustomerSendMessage(event) {
             event.preventDefault();
-            if (!currentUser) {
-                alert('⚠️ กรุณาล็อกอินก่อนส่งข้อความ');
-                window.location.href = '/api/login';
-                return;
-            }
+            if (!currentUser) return;
 
             const input = document.getElementById('customer-chat-input');
             const message = input.value.trim();
             if (!message) return;
 
-            if (!chatThreads[currentUser.id]) {
-                chatThreads[currentUser.id] = [];
-            }
+            if (!chatThreads[currentUser.id]) chatThreads[currentUser.id] = [];
 
             chatThreads[currentUser.id].push({
                 senderName: currentUser.username,
@@ -327,18 +367,19 @@
                 time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
             });
 
+            await addLog(`ลูกค้า [${currentUser.username}] ส่งข้อความแชท`);
             input.value = '';
             await saveDataToDB();
             renderCustomerChat();
         }
 
-        // --- ส่วนแชทร้านค้าของ Admin ---
+        // --- ส่วนแชท Admin ---
         function renderAdminChatUsers() {
             const userListContainer = document.getElementById('admin-chat-users');
             const userIds = Object.keys(chatThreads);
 
             if (userIds.length === 0) {
-                userListContainer.innerHTML = `<span class="text-xs text-gray-500 p-2">ยังไม่มีลูกค้าทักมา</span>`;
+                userListContainer.innerHTML = `<span class="text-[10px] text-gray-500 p-1">ไม่มีลูกค้าทักมา</span>`;
                 return;
             }
 
@@ -349,9 +390,9 @@
                 let activeClass = selectedChatUserId === uid ? 'bg-amber-500/20 border-amber-500' : 'bg-gray-800 hover:bg-gray-700';
 
                 userListContainer.innerHTML += `
-                    <div onclick="selectChatUser('${uid}')" class="p-2 rounded-lg cursor-pointer border border-transparent ${activeClass} transition">
-                        <div class="font-bold text-xs text-amber-300 truncate">${lastMsg ? lastMsg.senderName : 'ลูกค้า'}</div>
-                        <div class="text-[10px] text-gray-400 truncate">${lastMsg ? lastMsg.message : ''}</div>
+                    <div onclick="selectChatUser('${uid}')" class="p-1.5 rounded cursor-pointer border border-transparent ${activeClass} transition">
+                        <div class="font-bold text-[11px] text-amber-300 truncate">${lastMsg ? lastMsg.senderName : 'ลูกค้า'}</div>
+                        <div class="text-[9px] text-gray-400 truncate">${lastMsg ? lastMsg.message : ''}</div>
                     </div>
                 `;
             });
@@ -366,22 +407,19 @@
 
         function renderAdminChatMessages() {
             const chatMsgsContainer = document.getElementById('admin-chat-messages');
-            if (!selectedChatUserId || !chatThreads[selectedChatUserId]) {
-                chatMsgsContainer.innerHTML = `<div class="text-center text-gray-500 text-xs py-10">เลือกแชทลูกค้าทางซ้ายมือ</div>`;
-                return;
-            }
+            if (!selectedChatUserId || !chatThreads[selectedChatUserId]) return;
 
             const msgs = chatThreads[selectedChatUserId];
             chatMsgsContainer.innerHTML = '';
             msgs.forEach(m => {
                 let align = m.isAdmin ? 'text-right bg-indigo-950/40 border-indigo-500/30' : 'text-left bg-gray-800 border-gray-700';
                 chatMsgsContainer.innerHTML += `
-                    <div class="p-2 rounded-lg border ${align}">
-                        <div class="flex justify-between items-center mb-0.5">
-                            <span class="font-bold text-[10px] text-amber-300">${m.senderName}</span>
-                            <span class="text-[9px] text-gray-500">${m.time}</span>
+                    <div class="p-1.5 rounded border ${align} mb-1">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-[9px] text-amber-300">${m.senderName}</span>
+                            <span class="text-[8px] text-gray-500">${m.time}</span>
                         </div>
-                        <p class="text-gray-200 text-xs">${m.message}</p>
+                        <p class="text-gray-200 text-[11px]">${m.message}</p>
                     </div>
                 `;
             });
@@ -396,9 +434,7 @@
             const message = input.value.trim();
             if (!message) return;
 
-            if (!chatThreads[selectedChatUserId]) {
-                chatThreads[selectedChatUserId] = [];
-            }
+            if (!chatThreads[selectedChatUserId]) chatThreads[selectedChatUserId] = [];
 
             chatThreads[selectedChatUserId].push({
                 senderName: 'เจ้าของร้าน (Admin)',
@@ -407,41 +443,40 @@
                 time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
             });
 
+            await addLog(`แอดมินตอบกลับแชทร้านค้า`);
             input.value = '';
             await saveDataToDB();
             renderAdminChatMessages();
             renderAdminChatUsers();
         }
 
-        // --- ระบบออร์เดอร์และจัดการสินค้า ---
         function renderOrders() {
             const container = document.getElementById('admin-orders-list');
             if (!isOwner) return;
 
             if (ordersList.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-sm">ยังไม่มีออร์เดอร์สั่งซื้อในขณะนี้</p>`;
+                container.innerHTML = `<p class="text-gray-500 text-xs">ยังไม่มีออร์เดอร์</p>`;
                 return;
             }
 
             container.innerHTML = '';
             ordersList.forEach(o => {
                 let statusBadge = o.status === 'รอการยืนยัน' 
-                    ? `<span class="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded text-[10px] font-bold">⏳ รอการยืนยัน</span>`
-                    : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold">✅ ยืนยันแล้ว</span>`;
+                    ? `<span class="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold">⏳ รอ</span>`
+                    : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold">✅ สำเร็จ</span>`;
 
                 container.innerHTML += `
-                    <div class="bg-gray-900 border border-gray-700 p-3 rounded-xl flex justify-between items-center">
+                    <div class="bg-gray-800 border border-gray-700 p-2 rounded-lg flex justify-between items-center text-xs">
                         <div>
-                            <div class="flex items-center space-x-2 mb-1">
-                                <span class="font-bold text-xs text-amber-300">${o.itemName}</span>
-                                <span class="text-gray-400 text-xs">(${o.price} ${o.currency})</span>
+                            <div class="flex items-center space-x-1">
+                                <span class="font-bold text-amber-300">${o.itemName}</span>
                                 ${statusBadge}
                             </div>
-                            <p class="text-xs text-gray-300">ผู้สั่ง: <strong class="text-indigo-400">${o.username}</strong></p>
+                            <span class="text-[10px] text-gray-400">โดย: ${o.username} (${o.price} ${o.currency})</span>
                         </div>
-                        <div class="flex items-center space-x-1">
-                            ${o.status === 'รอการยืนยัน' ? `<button onclick="approveOrder(${o.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-[10px] font-bold transition">✔️ ยืนยัน</button>` : ''}
-                            <button onclick="deleteOrder(${o.id})" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded text-[10px] font-bold transition">🗑️</button>
+                        <div class="flex space-x-1">
+                            ${o.status === 'รอการยืนยัน' ? `<button onclick="approveOrder(${o.id}, '${o.itemName}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded text-[9px] font-bold">✔️</button>` : ''}
+                            <button onclick="deleteOrder(${o.id})" class="bg-red-600 hover:bg-red-500 text-white px-2 py-0.5 rounded text-[9px]">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -450,7 +485,7 @@
 
         async function buyItem(name, price, currency) {
             if (!currentUser) {
-                alert('⚠️ กรุณาล็อกอินด้วยบัญชี Discord ก่อนทำการสั่งซื้อครับ');
+                alert('⚠️ กรุณาล็อกอินด้วยบัญชี Discord ก่อนสั่งซื้อ');
                 window.location.href = '/api/login';
                 return;
             }
@@ -467,24 +502,27 @@
             };
 
             ordersList.unshift(newOrder);
+            await addLog(`ลูกค้า [${currentUser.username}] สั่งซื้อสินค้า: ${name}`);
             await saveDataToDB();
             renderOrders();
-            alert(`🎉 สั่งซื้อสำเร็จ! ระบบได้ส่งออร์เดอร์ [${name}] ไปยังแอดมินแล้ว สามารถทักแชทส่วนตัวด้านล่างเพื่อแจ้งโอนเงินได้เลยครับ`);
+            alert(`🎉 สั่งซื้อสำเร็จ! ส่งออร์เดอร์ไปหาแอดมินเรียบร้อย`);
         }
 
-        async function approveOrder(orderId) {
+        async function approveOrder(orderId, itemName) {
             const order = ordersList.find(o => o.id === orderId);
             if (order) {
                 order.status = 'ยืนยันแล้ว';
+                await addLog(`แอดมินยืนยันออร์เดอร์: ${itemName}`);
                 await saveDataToDB();
                 renderOrders();
-                alert('✅ ยืนยันออร์เดอร์เรียบร้อยแล้ว!');
+                alert('✅ ยืนยันออร์เดอร์เรียบร้อย');
             }
         }
 
         async function deleteOrder(orderId) {
-            if (confirm('⚠️ ต้องการลบออร์เดอร์นี้ใช่หรือไม่?')) {
+            if (confirm('ต้องการลบออร์เดอร์นี้?')) {
                 ordersList = ordersList.filter(o => o.id !== orderId);
+                await addLog(`แอดมินลบออร์เดอร์ ID: ${orderId}`);
                 await saveDataToDB();
                 renderOrders();
             }
@@ -504,6 +542,8 @@
 
             const newProduct = { id: Date.now(), name, desc, amount, price, currency, image };
             productsList.push(newProduct);
+            
+            await addLog(`แอดมินเพิ่มสินค้าใหม่: ${name} (${price} ${currency})`);
             await saveDataToDB();
             closeModal();
             document.getElementById('create-product-form').reset();
@@ -511,9 +551,10 @@
             alert('🎉 เพิ่มรายการของดรอปใหม่สำเร็จ!');
         }
 
-        async function deleteProduct(id) {
-            if (confirm('⚠️ คุณแน่ใจหรือไม่ที่จะลบรายการนี้?')) {
+        async function deleteProduct(id, name) {
+            if (confirm(`⚠️ ยืนยันที่จะลบสินค้า "${name}" ใช่หรือไม่?`)) {
                 productsList = productsList.filter(p => p.id !== id);
+                await addLog(`แอดมินลบสินค้า: ${name}`);
                 await saveDataToDB();
                 renderProducts();
             }
@@ -525,7 +566,7 @@
         }
 
         fetchData();
-        setInterval(fetchData, 5000);
+        setInterval(fetchData, 5000); // ดึงข้อมูลและอัปเดตแบบเรียลไทม์ทุก 5 วินาที
     </script>
 </body>
 </html>
