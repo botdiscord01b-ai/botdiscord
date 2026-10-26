@@ -5,7 +5,6 @@ export default async function handler(req, res) {
         try {
             let data = await kv.get('yulgang_store_data');
             
-            // ถ้ายังไม่มีข้อมูลในคีย์ใหม่ ให้สร้างค่าเริ่มต้น
             if (!data) {
                 data = {
                     products: [
@@ -14,7 +13,8 @@ export default async function handler(req, res) {
                         { id: 3, name: "ขยะดรอปสะสม (แพ็ก 100 ชิ้น)", desc: "ไอเทมขยะจากมอนสเตอร์ นำไปขายต่อหรือทำเควสได้คุ้มๆ", amount: 100, price: 20, currency: "บาท", image: "" }
                     ],
                     orders: [],
-                    chats: {}
+                    chats: {},
+                    logs: [{ time: new Date().toLocaleString('th-TH'), text: "ระบบเริ่มต้นทำงานสำเร็จ (System Initialized)" }]
                 };
                 await kv.set('yulgang_store_data', data);
             }
@@ -31,11 +31,11 @@ export default async function handler(req, res) {
                 bodyData = JSON.parse(bodyData);
             }
 
-            // รองรับทั้งข้อมูลแบบเก่าและแบบใหม่ (สินค้า, ออร์เดอร์, แชท)
             const storeData = {
                 products: bodyData.products || [],
                 orders: bodyData.orders || [],
-                chats: bodyData.chats || {}
+                chats: bodyData.chats || {},
+                logs: bodyData.logs || []
             };
 
             await kv.set('yulgang_store_data', storeData);
