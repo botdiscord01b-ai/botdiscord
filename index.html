@@ -10,20 +10,23 @@
 
     <!-- Header / Navbar -->
     <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center shadow-lg sticky top-0 z-40">
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('home')">
             <span class="text-2xl font-black text-amber-400 tracking-wider">⚔️ MasaruShop</span>
             <span class="bg-amber-500/20 text-amber-400 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-500/30">Yulgang Drops</span>
         </div>
 
         <div class="flex items-center space-x-3">
-            <button id="toggle-admin-btn" onclick="toggleSidebar()" class="hidden bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-2 rounded-lg text-xs md:text-sm transition flex items-center space-x-1 shadow-lg">
-                <span>🛡️ แผงควบคุมแอดมิน</span>
+            <button onclick="switchView('home')" class="text-gray-300 hover:text-amber-400 text-sm font-medium transition">หน้าแรก</button>
+            <button onclick="switchView('shop')" class="text-gray-300 hover:text-amber-400 text-sm font-medium transition">🛒 ร้านค้า / หมวดหมู่</button>
+            
+            <button id="toggle-admin-btn" onclick="toggleSidebar()" class="hidden bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs md:text-sm transition flex items-center space-x-1 shadow-lg">
+                <span>🛡️ แอดมิน</span>
             </button>
 
             <div id="auth-container">
-                <a href="/api/login" id="login-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition duration-200 flex items-center space-x-2 shadow-md">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-                    <span>Login with Discord</span>
+                <a href="/api/login" id="login-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition duration-200 flex items-center space-x-2 shadow-md text-sm">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                    <span>Login</span>
                 </a>
             </div>
         </div>
@@ -81,20 +84,43 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main Views Container -->
     <main class="container mx-auto px-4 py-8 flex-grow">
-        <div class="bg-gradient-to-r from-amber-900/40 via-gray-800 to-indigo-900/40 border border-amber-500/30 rounded-2xl p-6 md:p-10 mb-8 text-center shadow-xl">
-            <h1 class="text-3xl md:text-5xl font-extrabold text-amber-300 mb-3 drop-shadow">ศูนย์รวมวัตถุดิบและของดรอปจากมอนสเตอร์</h1>
-            <p class="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">ฟาร์มเอง ขายจริง ปลอดภัย 100% ยืนยันตัวตนด้วยบัญชี Discord</p>
+        
+        <!-- 1. VIEW: หน้าแรก (Dashboard โล่งๆ หลังล็อกอิน) -->
+        <div id="view-home" class="space-y-8">
+            <div class="bg-gradient-to-r from-amber-900/40 via-gray-800 to-indigo-900/40 border border-amber-500/30 rounded-2xl p-8 md:p-14 text-center shadow-2xl max-w-4xl mx-auto">
+                <h1 class="text-3xl md:text-5xl font-extrabold text-amber-300 mb-4 drop-shadow">ยินดีต้อนรับสู่ MasaruShop</h1>
+                <p class="text-gray-300 text-base md:text-lg mb-8">ศูนย์รวมวัตถุดิบและไอเทมดรอปจากเกมโยวกัง (Yulgang) ฟาร์มเอง ปลอดภัย 100%</p>
+                <div class="flex justify-center gap-4">
+                    <button onclick="switchView('shop')" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-8 py-3 rounded-xl shadow-lg transition text-base">
+                        🛍️ เข้าสู่หน้าร้านค้า / หมวดหมู่
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-amber-400">🛒 รายการของดรอปจากมอนสเตอร์</h2>
+        <!-- 2. VIEW: หน้าร้านค้าและหมวดหมู่ (Shop & Categories) -->
+        <div id="view-shop" class="space-y-6 hidden">
+            <div class="flex flex-col md:flex-row justify-between items-center bg-gray-800 border border-gray-700 p-4 rounded-2xl gap-4 shadow-lg">
+                <h2 class="text-xl font-bold text-amber-400">📂 หมวดหมู่สินค้าทั้งหมด</h2>
+                <!-- ปุ่มเลือกหมวดหมู่ -->
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <button onclick="filterCategory('all')" id="cat-all" class="cat-btn bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition">🌟 ทั้งหมด</button>
+                    <button onclick="filterCategory('💎')" id="cat-stone" class="cat-btn bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg text-xs transition">💎 หิน</button>
+                    <button onclick="filterCategory('⚔️')" id="cat-weapon" class="cat-btn bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg text-xs transition">⚔️ อาวุธ</button>
+                    <button onclick="filterCategory('🛡️')" id="cat-armor" class="cat-btn bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg text-xs transition">🛡️ เกราะ</button>
+                    <button onclick="filterCategory('🧪')" id="cat-potion" class="cat-btn bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg text-xs transition">🧪 ยา</button>
+                    <button onclick="filterCategory('📦')" id="cat-material" class="cat-btn bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg text-xs transition">📦 วัสดุสร้างแพ็ก</button>
+                </div>
+            </div>
+
+            <!-- Grid แสดงรายการสินค้า -->
+            <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div class="text-center col-span-4 text-gray-400 py-10">กำลังโหลดข้อมูลสินค้า...</div>
+            </div>
         </div>
 
-        <div id="product-grid" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div class="text-center col-span-4 text-gray-400 py-10">กำลังโหลดข้อมูลสินค้า...</div>
-        </div>
     </main>
 
     <!-- Customer Chat -->
@@ -182,6 +208,7 @@
         let activityLogs = [];
         let selectedChatUserId = null;
         let currentUser = null;
+        let currentCategory = 'all';
 
         const urlParams = new URLSearchParams(window.location.search);
         const userParam = urlParams.get('user');
@@ -225,6 +252,38 @@
                     <button onclick="logout()" class="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition duration-200">ออกจากระบบ</button>
                 </div>
             `;
+        }
+
+        function switchView(viewName) {
+            const homeView = document.getElementById('view-home');
+            const shopView = document.getElementById('view-shop');
+
+            if (viewName === 'home') {
+                homeView.classList.remove('hidden');
+                shopView.classList.add('hidden');
+            } else if (viewName === 'shop') {
+                homeView.classList.add('hidden');
+                shopView.classList.remove('hidden');
+                renderProducts();
+            }
+        }
+
+        function filterCategory(category) {
+            currentCategory = category;
+            
+            // เปลี่ยนสีปุ่มเมนูหมวดหมู่
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.className = "cat-btn bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg text-xs transition";
+            });
+
+            if (category === 'all') document.getElementById('cat-all').className = "cat-btn bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition";
+            if (category === '💎') document.getElementById('cat-stone').className = "cat-btn bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition";
+            if (category === '⚔️') document.getElementById('cat-weapon').className = "cat-btn bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition";
+            if (category === '🛡️') document.getElementById('cat-armor').className = "cat-btn bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition";
+            if (category === '🧪') document.getElementById('cat-potion').className = "cat-btn bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition";
+            if (category === '📦') document.getElementById('cat-material').className = "cat-btn bg-amber-500 text-gray-950 font-bold px-3 py-1.5 rounded-lg text-xs transition";
+
+            renderProducts();
         }
 
         function toggleSidebar() {
@@ -291,15 +350,19 @@
             const grid = document.getElementById('product-grid');
             grid.innerHTML = '';
 
-            if (productsList.length === 0) {
-                grid.innerHTML = `<div class="text-center col-span-4 text-gray-400 py-10">ยังไม่มีสินค้าในระบบ</div>`;
+            let filtered = productsList;
+            if (currentCategory !== 'all') {
+                filtered = productsList.filter(p => (p.emoji || '📦') === currentCategory);
+            }
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="text-center col-span-4 text-gray-400 py-10">ยังไม่มีสินค้าในหมวดหมู่นี้</div>`;
                 return;
             }
 
-            productsList.forEach(p => {
+            filtered.forEach(p => {
                 let deleteBtnHtml = isOwner ? `<button onclick="deleteProduct(${p.id}, '${p.name}')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">🗑️ ลบ</button>` : '';
                 
-                // ตรวจสอบรูปภาพ: ถ้ามีลิงก์รูปให้แสดงรูป ถ้าไม่มีให้แสดง Emoji หมวดหมู่ที่เลือก
                 let itemEmoji = p.emoji || '📦';
                 let imageDisplay = p.image 
                     ? `<img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover rounded-lg">` 
